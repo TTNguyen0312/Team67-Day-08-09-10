@@ -18,7 +18,8 @@
 ```
 
 **Mô tả ngắn gọn:**
-> TODO: Mô tả hệ thống trong 2-3 câu. Nhóm xây gì? Cho ai dùng? Giải quyết vấn đề gì?
+Nhóm xây **trợ lý nội bộ cho CS + IT Helpdesk** để trả lời câu hỏi về **policy / SLA / quy trình cấp quyền / FAQ**.
+Hệ thống dùng RAG để **retrieve chứng cứ từ tài liệu nội bộ** và sinh câu trả lời **ngắn gọn, có trích nguồn**, đồng thời **abstain** khi không đủ dữ liệu để tránh hallucination.
 
 ---
 
@@ -27,22 +28,22 @@
 ### Tài liệu được index
 | File | Nguồn | Department | Số chunk |
 |------|-------|-----------|---------|
-| `policy_refund_v4.txt` | policy/refund-v4.pdf | CS | TODO |
-| `sla_p1_2026.txt` | support/sla-p1-2026.pdf | IT | TODO |
-| `access_control_sop.txt` | it/access-control-sop.md | IT Security | TODO |
-| `it_helpdesk_faq.txt` | support/helpdesk-faq.md | IT | TODO |
-| `hr_leave_policy.txt` | hr/leave-policy-2026.pdf | HR | TODO |
+| `policy_refund_v4.txt` | policy/refund-v4.pdf | CS | 6 |
+| `sla_p1_2026.txt` | support/sla-p1-2026.pdf | IT | 5 |
+| `access_control_sop.txt` | it/access-control-sop.md | IT Security | 8 |
+| `it_helpdesk_faq.txt` | support/helpdesk-faq.md | IT | 6 |
+| `hr_leave_policy.txt` | hr/leave-policy-2026.pdf | HR | 5 |
 
 ### Quyết định chunking
 | Tham số | Giá trị | Lý do |
 |---------|---------|-------|
-| Chunk size | TODO tokens | TODO |
-| Overlap | TODO tokens | TODO |
-| Chunking strategy | Heading-based / paragraph-based | TODO |
+| Chunk size | 400 tokens (ước lượng \(\approx\) 1600 chars) | Cân bằng giữa đủ ngữ cảnh để trả lời vs tránh context quá dài gây nhiễu |
+| Overlap | 80 tokens (ước lượng \(\approx\) 320 chars) | Giảm mất mạch khi điều khoản nằm ở ranh giới chunk, tăng recall cho câu hỏi multi-sentence |
+| Chunking strategy | Heading-based → paragraph-based (khi section dài) | Ưu tiên ranh giới tự nhiên theo section/đoạn để tránh cắt giữa điều khoản, sau đó mới giới hạn theo kích thước |
 | Metadata fields | source, section, effective_date, department, access | Phục vụ filter, freshness, citation |
 
 ### Embedding model
-- **Model**: TODO (OpenAI text-embedding-3-small / paraphrase-multilingual-MiniLM-L12-v2)
+- **Model**: OpenAI `text-embedding-3-small`
 - **Vector store**: ChromaDB (PersistentClient)
 - **Similarity metric**: Cosine
 
@@ -56,20 +57,20 @@
 | Strategy | Dense (embedding similarity) |
 | Top-k search | 10 |
 | Top-k select | 3 |
-| Rerank | Không |
+| Rerank | Không (tuỳ chọn bật sau khi đã có baseline ổn định) |
 
 ### Variant (Sprint 3)
 | Tham số | Giá trị | Thay đổi so với baseline |
 |---------|---------|------------------------|
-| Strategy | TODO (hybrid / dense) | TODO |
-| Top-k search | TODO | TODO |
-| Top-k select | TODO | TODO |
-| Rerank | TODO (cross-encoder / MMR) | TODO |
-| Query transform | TODO (expansion / HyDE / decomposition) | TODO |
+| Strategy | Hybrid (Dense + BM25 Sparse) với Reciprocal Rank Fusion (RRF) | Thay retrieval từ pure dense → hybrid để tăng recall với keyword/mã lỗi/tên riêng |
+| Top-k search | 10 | Giữ nguyên |
+| Top-k select | 3 | Giữ nguyên |
+| Rerank | Tắt (có sẵn cross-encoder, chỉ bật khi cần giảm noise) | Không đổi mặc định |
+| Query transform | Không dùng | Không đổi |
 
 **Lý do chọn variant này:**
-> TODO: Giải thích tại sao chọn biến này để tune.
-> Ví dụ: "Chọn hybrid vì corpus có cả câu tự nhiên (policy) lẫn mã lỗi và tên chuyên ngành (SLA ticket P1, ERR-403)."
+Chọn **hybrid** vì corpus có cả câu tự nhiên (policy) lẫn **keyword/mã lỗi/tên gọi chuyên môn**; sparse (BM25) bắt đúng term, dense bắt được paraphrase.
+RRF giúp gộp hai ranking mà vẫn giữ logic “search rộng → chọn top nhỏ” ổn định cho evaluation.
 
 ---
 
@@ -96,7 +97,7 @@ Answer:
 ### LLM Configuration
 | Tham số | Giá trị |
 |---------|---------|
-| Model | TODO (gpt-4o-mini / gemini-1.5-flash) |
+| Model | `gpt-4o-mini` (config qua biến môi trường `LLM_MODEL`) |
 | Temperature | 0 (để output ổn định cho eval) |
 | Max tokens | 512 |
 
