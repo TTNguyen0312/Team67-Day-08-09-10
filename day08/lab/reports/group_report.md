@@ -42,7 +42,7 @@ Failure modes nổi bật (từ tuning-log + per-question):
 - **Retrieval Owner — Truong Quang Loc, Nguyen Viet Quang**
   - Implement/điều chỉnh retrieval pipeline trong `rag_answer.py` (dense/hybrid/rerank) và `transform_query()`.
   - Rút ra bài học: ưu tiên sửa indexing/chunking/coverage trước khi tăng độ phức tạp retrieval; lỗi chunking có thể làm “không tìm thấy” dù đổi strategy.
-- **Evaluation Owner — Nguyen Thi Ngoc**
+- **Evaluation Owner — Nguyen Thi Ngoc, Vu Duc Minh**
   - Chạy scorecard theo 4 metrics và dùng kết quả để trace lỗi theo tầng (indexing/retrieval/generation), đặc biệt tập trung vào các câu yếu như q09/q06.
   - Đề xuất cải tiến theo A/B rule (đổi 1 biến/lần) và bổ sung dữ liệu/contract cho các query dạng “mã lỗi”.
 - **Documentation Owner — Nguyen Thi Ngoc, Vu Duc Minh**
