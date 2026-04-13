@@ -278,6 +278,9 @@ def retrieve_hybrid(
 # Cross-encoder để chấm lại relevance sau search rộng
 # =============================================================================
 
+# Caching model cho rerank để không bị lag khi hệ thống tự động gọi nhiều lần
+_cross_encoder_model = None
+
 def rerank(
     query: str,
     candidates: List[Dict[str, Any]],
@@ -309,8 +312,29 @@ def rerank(
     - Muốn chắc chắn chỉ 3-5 chunk tốt nhất vào prompt
     """
     # TODO Sprint 3: Implement rerank
-    # Tạm thời trả về top_k đầu tiên (không rerank)
-    return candidates[:top_k]
+    global _cross_encoder_model
+    
+    if not candidates:
+        return []
+
+    print("\n[rerank] Đang chạy cross-encoder reranking để chấm điểm lại candidates...")
+    
+    # 1. Khởi tạo model (chỉ load 1 lần đầu tiên)
+    if _cross_encoder_model is None:
+        from sentence_transformers import CrossEncoder
+        _cross_encoder_model = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+
+    # 2. Tạo pairs: [[câu hỏi, văn bản 1], [câu hỏi, văn bản 2], ...]
+    pairs = [[query, chunk["text"]] for chunk in candidates]
+    
+    # 3. Model đưa ra điểm số đánh giá mức độ liên quan thực sự (không chỉ dựa vào từ khóa/vector)
+    scores = _cross_encoder_model.predict(pairs)
+    
+    # 4. Gom cặp candidate và điểm lại, sắp xếp giảm dần (từ cao xuống thấp)
+    ranked = sorted(zip(candidates, scores), key=lambda x: x[1], reverse=True)
+    
+    # 5. Extract chunk ra khỏi tuple và trả về top_k chunks có điểm cao nhất
+    return [chunk for chunk, _ in ranked[:top_k]]
 
 
 # =============================================================================
@@ -581,6 +605,17 @@ def compare_retrieval_strategies(query: str) -> None:
             print(f"Chưa implement: {e}")
         except Exception as e:
             print(f"Lỗi: {e}")
+            
+    # --- Chạy test variant Rerank ---
+    # print("\n--- Strategy: dense + rerank ---")
+    # try:
+    #     # Gọi rag_answer với retrieval=dense nhưng BAT use_rerank=True
+    #     # Tăng top_k_search từ 10 (mặc định) lên cao hơn để Reranker có nhiều ngữ cảnh để lựa chọn, ví dụ 15
+    #     result = rag_answer(query, retrieval_mode="dense", top_k_search=15, top_k_select=3, use_rerank=True, verbose=False)
+    #     print(f"Answer: {result['answer']}")
+    #     print(f"Sources: {result['sources']}")
+    # except Exception as e:
+    #     print(f"Lỗi (Chưa install package?): {e}")
 
 
 # =============================================================================
