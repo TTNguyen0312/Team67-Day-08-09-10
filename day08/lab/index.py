@@ -90,6 +90,10 @@ def preprocess_document(raw_text: str, filepath: str) -> Dict[str, Any]:
             elif line.strip() == "" or line.isupper():
                 # Dòng tên tài liệu (toàn chữ hoa) hoặc dòng trống
                 continue
+            else:
+                # ADDED: Dòng không phải metadata key nhưng cũng không phải blank/title
+                # (ví dụ: "Ghi chú: Tài liệu này trước đây có tên ...") → giữ lại làm content
+                content_lines.append(line)
         else:
             content_lines.append(line)
 

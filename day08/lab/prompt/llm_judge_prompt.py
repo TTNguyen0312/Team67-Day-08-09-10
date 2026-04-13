@@ -2,6 +2,7 @@
 Prompt templates for LLM-as-Judge evaluation
 ===================================================================
 Tập trung tất cả judge prompts ở đây để dễ chỉnh sửa và A/B test prompt.
+Viết bằng tiếng Việt để LLM chấm ổn định hơn với nội dung tiếng Việt.
 """
 
 
@@ -17,26 +18,29 @@ def build_answer_relevance_prompt(query: str, answer: str) -> str:
     Returns:
         Prompt string sẵn sàng gửi cho LLM judge
     """
-    return f"""You are a strict answer relevance evaluator for a RAG system.
+    return f"""Bạn là một chuyên gia đánh giá hệ thống RAG. Nhiệm vụ của bạn là chấm điểm mức độ liên quan của câu trả lời so với câu hỏi.
 
-Your task: determine whether the answer directly and correctly addresses the question asked.
-Focus only on whether the answer is on-topic and responsive — not whether it is factually correct.
+Chỉ đánh giá xem câu trả lời có đúng trọng tâm câu hỏi không — không đánh giá tính chính xác của thông tin.
 
-Scoring rubric (1-5):
-  5 = Answer directly and completely addresses the question
-  4 = Mostly on-target; missing one minor aspect of the question
-  3 = Partially relevant but does not address the core of the question
-  2 = Answer is tangentially related but largely off-topic
-  1 = Answer does not address the question at all
+Lưu ý đặc biệt: Nếu câu trả lời là "Không tìm thấy thông tin trong tài liệu hiện có." hoặc tương tự,
+đây là hành vi abstain đúng đắn khi không có đủ thông tin — chấm điểm 5 nếu câu hỏi thực sự không có trong tài liệu,
+chấm điểm 1 nếu câu hỏi rõ ràng có thể trả lời được từ context nhưng model lại abstain.
 
-Question:
+Thang điểm (1-5):
+  5 = Câu trả lời trả lời trực tiếp và đầy đủ câu hỏi, HOẶC abstain đúng khi không có thông tin
+  4 = Phần lớn đúng trọng tâm, thiếu một khía cạnh nhỏ của câu hỏi
+  3 = Có liên quan nhưng chưa đúng trọng tâm chính
+  2 = Chỉ liên quan một phần, phần lớn lạc đề
+  1 = Không trả lời câu hỏi, HOẶC abstain sai khi context có đủ thông tin để trả lời
+
+Câu hỏi:
 {query}
 
-Answer to evaluate:
+Câu trả lời cần chấm:
 {answer}
 
-Respond with ONLY valid JSON, no markdown, no explanation outside the JSON:
-{{"score": <integer 1-5>, "reason": "<one sentence explaining the score>"}}"""
+Chỉ trả về JSON hợp lệ, không có markdown, không giải thích ngoài JSON:
+{{"score": <số nguyên 1-5>, "reason": "<một câu giải thích ngắn gọn bằng tiếng Việt>"}}"""
 
 
 def build_context_recall_prompt(query: str, context_str: str, expected_sources: list) -> str:
@@ -52,27 +56,25 @@ def build_context_recall_prompt(query: str, context_str: str, expected_sources: 
     Returns:
         Prompt string sẵn sàng gửi cho LLM judge
     """
-    sources_str = ", ".join(expected_sources) if expected_sources else "not specified"
-    return f"""You are a strict context recall evaluator for a RAG system.
+    sources_str = ", ".join(expected_sources) if expected_sources else "không xác định"
+    return f"""Bạn là một chuyên gia đánh giá hệ thống RAG. Nhiệm vụ của bạn là chấm điểm mức độ đầy đủ của context được retrieve so với câu hỏi.
+Các nguồn tài liệu cần có: {sources_str}
 
-Your task: determine whether the retrieved context contains sufficient information to answer the question.
-Expected sources that should be present: {sources_str}
+Thang điểm (1-5):
+  5 = Context chứa đầy đủ thông tin cần thiết để trả lời câu hỏi
+  4 = Context gần đủ, thiếu một chi tiết nhỏ
+  3 = Context chứa một phần thông tin cần thiết, thiếu một số nội dung quan trọng
+  2 = Context phần lớn không đủ, thiếu thông tin chủ yếu
+  1 = Context gần như không có thông tin liên quan đến câu hỏi
 
-Scoring rubric (1-5):
-  5 = Retrieved context fully covers all information needed to answer the question
-  4 = Context mostly covers the question; one minor detail is missing
-  3 = Context partially covers the question; some key information is absent
-  2 = Context is mostly insufficient; major information needed is missing
-  1 = Context contains almost nothing relevant to the question
-
-Question:
+Câu hỏi:
 {query}
 
-Retrieved context:
+Context đã retrieve:
 {context_str}
 
-Respond with ONLY valid JSON, no markdown, no explanation outside the JSON:
-{{"score": <integer 1-5>, "reason": "<one sentence explaining the score>"}}"""
+Chỉ trả về JSON hợp lệ, không có markdown, không giải thích ngoài JSON:
+{{"score": <số nguyên 1-5>, "reason": "<một câu giải thích ngắn gọn bằng tiếng Việt>"}}"""
 
 
 def build_completeness_prompt(query: str, answer: str, expected_answer: str) -> str:
@@ -88,29 +90,28 @@ def build_completeness_prompt(query: str, answer: str, expected_answer: str) -> 
     Returns:
         Prompt string sẵn sàng gửi cho LLM judge
     """
-    return f"""You are a strict completeness evaluator for a RAG system.
+    return f"""Bạn là một chuyên gia đánh giá hệ thống RAG. Nhiệm vụ của bạn là so sánh câu trả lời của model với câu trả lời mẫu và chấm điểm mức độ đầy đủ.
 
-Your task: compare the model answer against the expected answer and determine how completely
-the model answer covers all key points. Do not penalize different wording — only penalize missing information.
+Không trừ điểm vì cách diễn đạt khác nhau — chỉ trừ điểm khi thiếu thông tin quan trọng.
 
-Scoring rubric (1-5):
-  5 = All key points from the expected answer are present in the model answer
-  4 = One minor point is missing
-  3 = Some important points are missing
-  2 = Many important points are missing
-  1 = Most of the core content is missing
+Thang điểm (1-5):
+  5 = Câu trả lời bao gồm đủ tất cả các điểm quan trọng trong câu trả lời mẫu
+  4 = Thiếu một chi tiết nhỏ
+  3 = Thiếu một số thông tin quan trọng
+  2 = Thiếu nhiều thông tin quan trọng
+  1 = Thiếu phần lớn nội dung cốt lõi
 
-Question:
+Câu hỏi:
 {query}
 
-Expected answer (ground truth):
+Câu trả lời mẫu (ground truth):
 {expected_answer}
 
-Model answer to evaluate:
+Câu trả lời cần chấm:
 {answer}
 
-Respond with ONLY valid JSON, no markdown, no explanation outside the JSON:
-{{"score": <integer 1-5>, "reason": "<one sentence explaining the score>", "missing_points": ["<point1>", "<point2>"]}}"""
+Chỉ trả về JSON hợp lệ, không có markdown, không giải thích ngoài JSON:
+{{"score": <số nguyên 1-5>, "reason": "<một câu giải thích ngắn gọn bằng tiếng Việt>", "missing_points": ["<điểm thiếu 1>", "<điểm thiếu 2>"]}}"""
 
 
 def build_faithfulness_prompt(answer: str, context_str: str) -> str:
@@ -125,23 +126,25 @@ def build_faithfulness_prompt(answer: str, context_str: str) -> str:
     Returns:
         Prompt string sẵn sàng gửi cho LLM judge
     """
-    return f"""You are a strict faithfulness evaluator for a RAG system.
+    return f"""Bạn là một chuyên gia đánh giá hệ thống RAG. Nhiệm vụ của bạn là chấm điểm mức độ bám sát context của câu trả lời.
 
-Your task: determine whether the answer is fully grounded in the retrieved context below.
-Do NOT use any external knowledge — only judge based on what the context contains.
+Chỉ dựa vào context được cung cấp để đánh giá — không dùng kiến thức bên ngoài.
 
-Scoring rubric (1-5):
-  5 = Every claim in the answer is directly supported by the retrieved context
-  4 = Almost fully grounded; one minor detail is uncertain
-  3 = Mostly grounded, but some information may come from model knowledge
-  2 = Several claims are not found in the retrieved context
-  1 = Answer is largely hallucinated or contradicts the context
+Lưu ý đặc biệt: Nếu câu trả lời là "Không tìm thấy thông tin trong tài liệu hiện có." hoặc tương tự,
+đây là hành vi abstain — KHÔNG phải hallucination. Chấm điểm 5 vì model không bịa thêm thông tin.
 
-Retrieved context:
+Thang điểm (1-5):
+  5 = Mọi thông tin trong câu trả lời đều có căn cứ trực tiếp từ context, HOẶC model abstain đúng
+  4 = Gần như hoàn toàn bám context, một chi tiết nhỏ chưa chắc chắn
+  3 = Phần lớn bám context, một số thông tin có thể từ kiến thức của model
+  2 = Nhiều thông tin không có trong context
+  1 = Câu trả lời phần lớn bịa đặt hoặc mâu thuẫn với context
+
+Context đã retrieve:
 {context_str}
 
-Answer to evaluate:
+Câu trả lời cần chấm:
 {answer}
 
-Respond with ONLY valid JSON, no markdown, no explanation outside the JSON:
-{{"score": <integer 1-5>, "reason": "<one sentence explaining the score>"}}"""
+Chỉ trả về JSON hợp lệ, không có markdown, không giải thích ngoài JSON:
+{{"score": <số nguyên 1-5>, "reason": "<một câu giải thích ngắn gọn bằng tiếng Việt>"}}"""
