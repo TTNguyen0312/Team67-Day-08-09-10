@@ -14,6 +14,8 @@ Trong lab Day 08, mình tập trung vào **tài liệu hoá + tổng hợp bằn
 - Hoàn thiện `docs/architecture.md`: mô tả kiến trúc end-to-end và chốt quyết định chunking (chunk_size=400, overlap=80) + baseline/variant.
 - Duy trì `docs/tuning-log.md`: ghi giả thuyết từ các câu yếu (q09/q06), config variant, và trade-off theo từng câu để team chốt hướng tune tiếp.
 - Tổng hợp `reports/group_report.md`: gom ý từ báo cáo cá nhân thành “team contribution” và “shared lessons”.
+- Chạy scorecard theo 4 metrics và dùng kết quả để trace lỗi theo tầng (indexing/retrieval/generation), đặc biệt tập trung vào các câu yếu như q09/q06.
+- Đề xuất cải tiến theo A/B rule (đổi 1 biến/lần) và bổ sung dữ liệu/contract cho các query dạng “mã lỗi”.
 
 ---
 
