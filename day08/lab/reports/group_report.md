@@ -39,10 +39,10 @@ Failure modes nổi bật (từ tuning-log + per-question):
 - **Tech Lead — Nguyen Trong Tien**
   - Triển khai và nối end-to-end: `index.py` (preprocess/chunk/embed/store), hỗ trợ review `rag_answer.py`, và triển khai `eval.py` (LLM-as-Judge + tách prompt).
   - Nhấn mạnh failure mode: reranker không fine-tune domain → điểm gần như đồng đều, dễ gây regression; thêm/điều chỉnh “abstain” cần kiểm soát để không làm mất completeness.
-- **Retrieval Owner — Truong Quang Loc**
-  - Implement/điều chỉnh retrieval pipeline trong `rag_answer.py` (dense/hybrid) và `transform_query()`.
+- **Retrieval Owner — Truong Quang Loc, Nguyen Viet Quang**
+  - Implement/điều chỉnh retrieval pipeline trong `rag_answer.py` (dense/hybrid/rerank) và `transform_query()`.
   - Rút ra bài học: ưu tiên sửa indexing/chunking/coverage trước khi tăng độ phức tạp retrieval; lỗi chunking có thể làm “không tìm thấy” dù đổi strategy.
-- **Evaluation Owner — Nguyen Viet Quang (lead), Nguyen Thi Ngoc (support)**
+- **Evaluation Owner — Nguyen Thi Ngoc**
   - Chạy scorecard theo 4 metrics và dùng kết quả để trace lỗi theo tầng (indexing/retrieval/generation), đặc biệt tập trung vào các câu yếu như q09/q06.
   - Đề xuất cải tiến theo A/B rule (đổi 1 biến/lần) và bổ sung dữ liệu/contract cho các query dạng “mã lỗi”.
 - **Documentation Owner — Nguyen Thi Ngoc, Vu Duc Minh**
