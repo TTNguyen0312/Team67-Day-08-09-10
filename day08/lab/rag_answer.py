@@ -24,6 +24,8 @@ Definition of Done Sprint 3:
 import os
 from typing import List, Dict, Any, Optional, Tuple
 from dotenv import load_dotenv
+# ADDED: Prompt template tách biệt để dễ chỉnh sửa — xem prompt/rag_prompt.py
+from prompt.rag_prompt import build_grounded_prompt
 
 load_dotenv()
 
@@ -150,11 +152,19 @@ def retrieve_sparse(query: str, top_k: int = TOP_K_SEARCH) -> List[Dict[str, Any
         return []
 
     # Bước 2: Tokenize corpus và tạo BM25 index
-    tokenized_corpus = [doc.lower().split() for doc in all_docs]
+    # ADDED: Strip punctuation trước khi split để tránh token như '"approval' ≠ 'approval'
+    import re
+
+    def tokenize(text: str) -> List[str]:
+        text = text.lower()
+        text = re.sub(r"[^\w\s]", " ", text)  # thay dấu câu bằng khoảng trắng
+        return text.split()
+
+    tokenized_corpus = [tokenize(doc) for doc in all_docs]
     bm25 = BM25Okapi(tokenized_corpus)
 
     # Bước 3: Query BM25
-    tokenized_query = query.lower().split()
+    tokenized_query = tokenize(query)
     scores = bm25.get_scores(tokenized_query)
 
     # Bước 4: Lấy top_k kết quả theo score giảm dần
@@ -459,33 +469,8 @@ def build_context_block(chunks: List[Dict[str, Any]]) -> str:
     return "\n\n".join(context_parts)
 
 
-def build_grounded_prompt(query: str, context_block: str) -> str:
-    """
-    Xây dựng grounded prompt theo 4 quy tắc từ slide:
-    1. Evidence-only: Chỉ trả lời từ retrieved context
-    2. Abstain: Thiếu context thì nói không đủ dữ liệu
-    3. Citation: Gắn source/section khi có thể
-    4. Short, clear, stable: Output ngắn, rõ, nhất quán
-
-    TODO Sprint 2:
-    Đây là prompt baseline. Trong Sprint 3, bạn có thể:
-    - Thêm hướng dẫn về format output (JSON, bullet points)
-    - Thêm ngôn ngữ phản hồi (tiếng Việt vs tiếng Anh)
-    - Điều chỉnh tone phù hợp với use case (CS helpdesk, IT support)
-    """
-    prompt = f"""Answer only from the retrieved context below.
-If the context is insufficient to answer the question, say you do not know and do not make up information.
-Cite the source field (in brackets like [1]) when possible.
-Keep your answer short, clear, and factual.
-Respond in the same language as the question.
-
-Question: {query}
-
-Context:
-{context_block}
-
-Answer:"""
-    return prompt
+# ADDED: build_grounded_prompt imported từ prompt/rag_prompt.py — xem file đó để chỉnh prompt
+# (hàm đã được xóa khỏi đây để tránh shadow import gây đệ quy vô hạn)
 
 
 def call_llm(prompt: str) -> str:

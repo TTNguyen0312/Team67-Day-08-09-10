@@ -200,8 +200,8 @@ def score_context_recall(
     3. Tính recall score
     """
     if not expected_sources:
-        # Câu hỏi không có expected source (ví dụ: "Không đủ dữ liệu" cases)
-        return {"score": None, "recall": None, "notes": "No expected sources"}
+        # Câu hỏi không có expected source → nếu retrieve được gì thì coi là sai (score 0)
+        return {"score": 0, "recall": 0, "notes": "No expected sources — should abstain"}
 
     retrieved_sources = {
         c.get("metadata", {}).get("source", "")
@@ -415,6 +415,18 @@ def run_scorecard(
         results.append(row)
 
         if verbose:
+            # ADDED: Log chunks retrieved cho từng câu hỏi
+            print(f"  Chunks retrieved ({len(chunks_used)}):")
+            for i, chunk in enumerate(chunks_used, 1):
+                meta = chunk.get("metadata", {})
+                source = meta.get("source", "unknown")
+                section = meta.get("section", "")
+                score = chunk.get("score", 0)
+                preview = chunk.get("text", "")[:80].replace("\n", " ")
+                score_str = f" | score={score:.3f}" if score else ""
+                section_str = f" | {section}" if section else ""
+                print(f"    [{i}] {source}{section_str}{score_str}")
+                print(f"        {preview}...")
             print(f"  Answer: {answer[:100]}...")
             print(f"  Faithful: {faith['score']} | Relevant: {relevance['score']} | "
                   f"Recall: {recall['score']} | Complete: {complete['score']}")
