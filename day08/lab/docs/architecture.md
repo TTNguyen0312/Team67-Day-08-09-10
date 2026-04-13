@@ -46,6 +46,8 @@ Hệ thống dùng RAG để **retrieve chứng cứ từ tài liệu nội bộ
 - **Model**: OpenAI `text-embedding-3-small`
 - **Vector store**: ChromaDB (PersistentClient)
 - **Similarity metric**: Cosine
+- **Chroma collection**: `rag_lab`
+- **Persistent dir**: `lab/chroma_db/`
 
 ---
 
@@ -102,6 +104,10 @@ Answer:
 | Model | `gpt-4o-mini` (config qua biến môi trường `LLM_MODEL`) |
 | Temperature | 0 (để output ổn định cho eval) |
 | Max tokens | 512 |
+
+### Output contract (để demo & evaluation)
+- **Citation format**: context được đánh số `[1]`, `[2]`, ... để LLM trích dẫn theo từng chunk.
+- **Abstain policy**: nếu context không đủ, câu trả lời phải nêu rõ “không đủ dữ liệu trong tài liệu được cung cấp” (không bịa).
 
 ---
 
