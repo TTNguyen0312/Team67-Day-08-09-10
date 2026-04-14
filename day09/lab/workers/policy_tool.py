@@ -10,7 +10,7 @@ Input (từ AgentState):
 Output (vào AgentState):
     - policy_result: {"policy_applies", "policy_name", "exceptions_found", "source", "rule"}
     - mcp_tools_used: list of tool calls đã thực hiện
-    - worker_io_log: log
+    - worker_io_logs: log
 
 Gọi độc lập để test:
     python workers/policy_tool.py
@@ -18,7 +18,6 @@ Gọi độc lập để test:
 
 import os
 import sys
-from typing import Optional
 
 WORKER_NAME = "policy_tool_worker"
 
@@ -38,8 +37,13 @@ def _call_mcp_tool(tool_name: str, tool_input: dict) -> dict:
     from datetime import datetime
 
     try:
-        # TODO Sprint 3: Thay bằng real MCP client nếu dùng HTTP server
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        repo_root = os.path.abspath(os.path.join(current_dir, ".."))
+        if repo_root not in sys.path:
+            sys.path.insert(0, repo_root)
+
         from mcp_server import dispatch_tool
+
         result = dispatch_tool(tool_name, tool_input)
         return {
             "tool": tool_name,
@@ -77,60 +81,99 @@ def analyze_policy(task: str, chunks: list) -> dict:
     Returns:
         dict with: policy_applies, policy_name, exceptions_found, source, rule, explanation
     """
-    task_lower = task.lower()
+    task_lower = (task or "").lower()
     context_text = " ".join([c.get("text", "") for c in chunks]).lower()
 
-    # --- Rule-based exception detection ---
     exceptions_found = []
 
-    # Exception 1: Flash Sale
     if "flash sale" in task_lower or "flash sale" in context_text:
-        exceptions_found.append({
-            "type": "flash_sale_exception",
-            "rule": "Đơn hàng Flash Sale không được hoàn tiền (Điều 3, chính sách v4).",
-            "source": "policy_refund_v4.txt",
-        })
+        exceptions_found.append(
+            {
+                "type": "flash_sale_exception",
+                "rule": "Đơn hàng Flash Sale không được hoàn tiền (Điều 3, chính sách v4).",
+                "source": "policy_refund_v4.txt",
+            }
+        )
 
-    # Exception 2: Digital product
-    if any(kw in task_lower for kw in ["license key", "license", "subscription", "kỹ thuật số"]):
-        exceptions_found.append({
-            "type": "digital_product_exception",
-            "rule": "Sản phẩm kỹ thuật số (license key, subscription) không được hoàn tiền (Điều 3).",
-            "source": "policy_refund_v4.txt",
-        })
+    if any(kw in task_lower or kw in context_text for kw in ["license key", "license", "subscription", "kỹ thuật số", "digital product"]):
+        exceptions_found.append(
+            {
+                "type": "digital_product_exception",
+                "rule": "Sản phẩm kỹ thuật số (license key, subscription) không được hoàn tiền (Điều 3).",
+                "source": "policy_refund_v4.txt",
+            }
+        )
 
-    # Exception 3: Activated product
-    if any(kw in task_lower for kw in ["đã kích hoạt", "đã đăng ký", "đã sử dụng"]):
-        exceptions_found.append({
-            "type": "activated_exception",
-            "rule": "Sản phẩm đã kích hoạt hoặc đăng ký tài khoản không được hoàn tiền (Điều 3).",
-            "source": "policy_refund_v4.txt",
-        })
+    if any(kw in task_lower or kw in context_text for kw in ["đã kích hoạt", "đã đăng ký", "đã sử dụng", "activated"]):
+        exceptions_found.append(
+            {
+                "type": "activated_exception",
+                "rule": "Sản phẩm đã kích hoạt hoặc đăng ký tài khoản không được hoàn tiền (Điều 3).",
+                "source": "policy_refund_v4.txt",
+            }
+        )
 
-    # Determine policy_applies
-    policy_applies = len(exceptions_found) == 0
-
-    # Determine which policy version applies (temporal scoping)
-    # TODO: Check nếu đơn hàng trước 01/02/2026 → v3 applies (không có docs, nên flag cho synthesis)
     policy_name = "refund_policy_v4"
     policy_version_note = ""
-    if "31/01" in task_lower or "30/01" in task_lower or "trước 01/02" in task_lower:
-        policy_version_note = "Đơn hàng đặt trước 01/02/2026 áp dụng chính sách v3 (không có trong tài liệu hiện tại)."
+    if any(token in task_lower for token in ["trước 01/02/2026", "trước 1/2/2026", "31/01/2026", "30/01/2026", "29/01/2026"]):
+        policy_name = "refund_policy_v3"
+        policy_version_note = "Đơn hàng đặt trước 01/02/2026 áp dụng chính sách v3, nhưng tài liệu v3 hiện không có trong context."
 
-    # TODO Sprint 2: Gọi LLM để phân tích phức tạp hơn
-    # Ví dụ:
-    # from openai import OpenAI
-    # client = OpenAI()
-    # response = client.chat.completions.create(
-    #     model="gpt-4o-mini",
-    #     messages=[
-    #         {"role": "system", "content": "Bạn là policy analyst. Dựa vào context, xác định policy áp dụng và các exceptions."},
-    #         {"role": "user", "content": f"Task: {task}\n\nContext:\n" + "\n".join([c['text'] for c in chunks])}
-    #     ]
-    # )
-    # analysis = response.choices[0].message.content
+    policy_applies = len(exceptions_found) == 0 and policy_name != "refund_policy_v3"
+    explanation = "Analyzed via rule-based policy check."
 
-    sources = list({c.get("source", "unknown") for c in chunks if c})
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    if openai_api_key and chunks:
+        try:
+            import json
+            from openai import OpenAI
+
+            client = OpenAI(api_key=openai_api_key)
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                temperature=0,
+                response_format={"type": "json_object"},
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "Bạn là policy analyst nội bộ. "
+                            "Chỉ được suy luận từ task và context đã cho. "
+                            "Trả về JSON hợp lệ với các key: "
+                            "policy_applies, policy_name, exceptions_found, policy_version_note, explanation."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": (
+                            f"Task: {task}\n\nContext:\n"
+                            + "\n".join([f"- ({c.get('source', 'unknown')}) {c.get('text', '')}" for c in chunks])
+                        ),
+                    },
+                ],
+            )
+            parsed = json.loads(response.choices[0].message.content or "{}")
+
+            llm_exceptions = parsed.get("exceptions_found") or []
+            if isinstance(llm_exceptions, list):
+                merged = {(ex.get("type"), ex.get("rule")): ex for ex in exceptions_found}
+                for ex in llm_exceptions:
+                    if isinstance(ex, dict):
+                        merged[(ex.get("type"), ex.get("rule"))] = ex
+                exceptions_found = list(merged.values())
+
+            if parsed.get("policy_name"):
+                policy_name = parsed["policy_name"]
+            if parsed.get("policy_version_note"):
+                policy_version_note = parsed["policy_version_note"]
+            if isinstance(parsed.get("policy_applies"), bool):
+                policy_applies = parsed["policy_applies"] and policy_name != "refund_policy_v3"
+            if parsed.get("explanation"):
+                explanation = parsed["explanation"]
+        except Exception:
+            pass
+
+    sources = sorted(list({c.get("source", "unknown") for c in chunks if c}))
 
     return {
         "policy_applies": policy_applies,
@@ -138,7 +181,7 @@ def analyze_policy(task: str, chunks: list) -> dict:
         "exceptions_found": exceptions_found,
         "source": sources,
         "policy_version_note": policy_version_note,
-        "explanation": "Analyzed via rule-based policy check. TODO: upgrade to LLM-based analysis.",
+        "explanation": explanation,
     }
 
 
@@ -178,7 +221,6 @@ def run(state: dict) -> dict:
     }
 
     try:
-        # Step 1: Nếu chưa có chunks, gọi MCP search_kb
         if not chunks and needs_tool:
             mcp_result = _call_mcp_tool("search_kb", {"query": task, "top_k": 3})
             state["mcp_tools_used"].append(mcp_result)
@@ -188,11 +230,9 @@ def run(state: dict) -> dict:
                 chunks = mcp_result["output"]["chunks"]
                 state["retrieved_chunks"] = chunks
 
-        # Step 2: Phân tích policy
         policy_result = analyze_policy(task, chunks)
         state["policy_result"] = policy_result
 
-        # Step 3: Nếu cần thêm info từ MCP (e.g., ticket status), gọi get_ticket_info
         if needs_tool and any(kw in task.lower() for kw in ["ticket", "p1", "jira"]):
             mcp_result = _call_mcp_tool("get_ticket_info", {"ticket_id": "P1-LATEST"})
             state["mcp_tools_used"].append(mcp_result)
@@ -210,16 +250,19 @@ def run(state: dict) -> dict:
 
     except Exception as e:
         worker_io["error"] = {"code": "POLICY_CHECK_FAILED", "reason": str(e)}
-        state["policy_result"] = {"error": str(e)}
+        state["policy_result"] = {
+            "policy_applies": False,
+            "policy_name": "unknown",
+            "exceptions_found": [],
+            "source": [],
+            "policy_version_note": "",
+            "error":  str(e),
+        }
         state["history"].append(f"[{WORKER_NAME}] ERROR: {e}")
 
     state.setdefault("worker_io_logs", []).append(worker_io)
     return state
 
-
-# ─────────────────────────────────────────────
-# Test độc lập
-# ─────────────────────────────────────────────
 
 if __name__ == "__main__":
     print("=" * 50)
