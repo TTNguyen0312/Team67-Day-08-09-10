@@ -125,9 +125,9 @@ Khả năng Module hóa (Modularity). Chẳng hạn lúc thay đổi luật củ
 
 | Thành viên | Phần đã làm | Sprint |
 |------------|-------------|--------|
-|  | Code logic Graph `supervisor_node()` | 1 |
-|  | Xây dựng Worker & Retrieval flow | 2 |
-|  | Khởi tạo MCP Tools Server | 3 |
+|  | graph.py, routing logic, state management | 1 |
+|  | retrieval.py, policy_tool.py, synthesis.py, contracts | 2 |
+|  | mcp_server.py, MCP integration trong policy_tool	 | 3 |
 | Nguyễn Việt Quang | Chạy Trace log, tính so sánh & Setup Báo cáo | 4 |
 
 **Điều nhóm làm tốt:**
