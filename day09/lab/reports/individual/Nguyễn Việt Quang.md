@@ -1,7 +1,7 @@
 # Báo Cáo Cá Nhân — Lab Day 09
 
 **Họ và tên:** Nguyễn Việt Quang
-**Vai trò:** Toàn bộ công đoạn Code Pipeline & Trace Docs Owner
+**Vai trò:** Trace & Docs Owner
 **Ngày nộp:** 14/04/2026
 
 ---
