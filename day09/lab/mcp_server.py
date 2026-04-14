@@ -388,7 +388,17 @@ if __name__ == "__main__":
     print(f"  emergency_override: {perm.get('emergency_override')}")
     print(f"  notes: {perm.get('notes')}")
 
-    # 5. Test invalid tool
+    # 5. Test create_ticket (New Implementation)
+    print("\n🎫 Test: create_ticket")
+    new_ticket = dispatch_tool("create_ticket", {
+        "priority": "P2",
+        "title": "Lỗi kết nối database",
+        "description": "Không thể kết nối đến DB từ server ứng dụng."
+    })
+    print(f"  Created Ticket ID: {new_ticket.get('ticket_id')}")
+    print(f"  Check tickets_db.json for persistence.")
+
+    # 6. Test invalid tool
     print("\n❌ Test: invalid tool")
     err = dispatch_tool("nonexistent_tool", {})
     print(f"  Error: {err.get('error')}")
