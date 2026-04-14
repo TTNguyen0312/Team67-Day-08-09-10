@@ -127,7 +127,7 @@ Khả năng Module hóa (Modularity). Chẳng hạn lúc thay đổi luật củ
 |------------|-------------|--------|
 |  | graph.py, routing logic, state management | 1 |
 |  | retrieval.py, policy_tool.py, synthesis.py, contracts | 2 |
-|  | mcp_server.py, MCP integration trong policy_tool	 | 3 |
+| Nguyễn Thị Ngọc | mcp_server.py, MCP integration trong policy_tool	 | 3 |
 | Nguyễn Việt Quang | Chạy Trace log, tính so sánh & Setup Báo cáo | 4 |
 
 **Điều nhóm làm tốt:**
