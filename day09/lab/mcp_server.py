@@ -134,17 +134,27 @@ TOOL_SCHEMAS = {
 
 def tool_search_kb(query: str, top_k: int = 3) -> dict:
     """
-    Tìm kiếm Knowledge Base bằng semantic search.
-
-    TODO Sprint 3: Kết nối với ChromaDB thực.
-    Hiện tại: Delegate sang retrieval worker.
+    Tìm kiếm Knowledge Base bằng semantic search từ ChromaDB.
     """
     try:
         # Tái dùng retrieval logic từ workers/retrieval.py
         import sys
-        sys.path.insert(0, os.path.dirname(__file__))
+        # Thêm đường dẫn thư mục hiện tại vào sys.path để import được workers
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        if current_dir not in sys.path:
+            sys.path.insert(0, current_dir)
+            
         from workers.retrieval import retrieve_dense
         chunks = retrieve_dense(query, top_k=top_k)
+        
+        if not chunks:
+            return {
+                "chunks": [],
+                "sources": [],
+                "total_found": 0,
+                "note": "Không tìm thấy kết quả phù hợp trong ChromaDB. Hãy đảm bảo bạn đã chạy index script."
+            }
+            
         sources = list({c["source"] for c in chunks})
         return {
             "chunks": chunks,
@@ -152,17 +162,11 @@ def tool_search_kb(query: str, top_k: int = 3) -> dict:
             "total_found": len(chunks),
         }
     except Exception as e:
-        # Fallback: return mock data nếu ChromaDB chưa setup
         return {
-            "chunks": [
-                {
-                    "text": f"[MOCK] Không thể query ChromaDB: {e}. Kết quả giả lập.",
-                    "source": "mock_data",
-                    "score": 0.5,
-                }
-            ],
-            "sources": ["mock_data"],
-            "total_found": 1,
+            "error": f"Lỗi khi truy vấn ChromaDB: {str(e)}",
+            "chunks": [],
+            "sources": [],
+            "total_found": 0,
         }
 
 
@@ -258,8 +262,9 @@ def tool_check_access_permission(access_level: int, requester_role: str, is_emer
 
 def tool_create_ticket(priority: str, title: str, description: str = "") -> dict:
     """
-    Tạo ticket mới (MOCK — in log, không tạo thật).
+    Tạo ticket mới và lưu vào database (JSON file).
     """
+    db_path = "tickets_db.json"
     mock_id = f"IT-{9900 + hash(title) % 99}"
     ticket = {
         "ticket_id": mock_id,
@@ -269,9 +274,23 @@ def tool_create_ticket(priority: str, title: str, description: str = "") -> dict
         "status": "open",
         "created_at": datetime.now().isoformat(),
         "url": f"https://jira.company.internal/browse/{mock_id}",
-        "note": "MOCK ticket — không tồn tại trong hệ thống thật",
     }
-    print(f"  [MCP create_ticket] MOCK: {mock_id} | {priority} | {title[:50]}")
+    
+    # Đọc dữ liệu cũ và ghi thêm ticket mới
+    tickets = []
+    if os.path.exists(db_path):
+        try:
+            with open(db_path, "r", encoding="utf-8") as f:
+                tickets = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            tickets = []
+            
+    tickets.append(ticket)
+    
+    with open(db_path, "w", encoding="utf-8") as f:
+        json.dump(tickets, f, indent=4, ensure_ascii=False)
+        
+    print(f"  [MCP create_ticket] Đã lưu ticket: {mock_id} | {priority} | {title[:50]}")
     return ticket
 
 
