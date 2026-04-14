@@ -4,9 +4,9 @@
 **Thành viên:**
 | Tên | Vai trò | Email |
 |-----|---------|-------|
-|  | Supervisor Owner |  |
+|  | Supervisor Owner | vuducminhvn2003@gmail.com |
 | Vũ Đức Minh| Worker Owner | vuducminhvn2003@gmail.com  |
-| Nguyễn Thị Ngọc | MCP Owner | ngocntit@gmail.com |
+| Nguyễn Thị Ngọc | MCP Owner & Integration | ngocntit@gmail.com |
 | Nguyễn Việt Quang | Trace & Docs Owner | nguyenvietquang.1601@gmail.com |
 
 **Ngày nộp:** 2026-04-14
@@ -36,11 +36,12 @@ Hệ thống sử dụng Kiến trúc Supervisor-Worker mô phỏng quy trình x
 **Routing logic cốt lõi:**
 > Logic Supervisor sẽ check dựa trên Keyword Matching (If-else) có trong `task`. Nếu phát hiện ra keyword về "refund, policy, access", Task sẽ được cấp chuyển sang `policy_tool_worker` xử lý. Nếu Task có yếu tố khẩn cấp "P1, ticket", hệ thống tự động đẩy truy vấn về lại `retrieval_worker`. Đối với các mã Code Error kỳ lạ hoặc chưa định danh, cờ `risk_high` kéo lên để Pause luồng thực thi (HITL).
 
-**MCP tools đã tích hợp:**
-> `policy_tool_worker` tích hợp sẵn khả năng gọi trực tiếp các Tools ngoại vi
+**MCP tools đã tích hợp (Advanced - Bonus +2):**
+> Nhóm đã triển khai **FastAPI HTTP Server** (`mcp_api.py`) thay vì mock class đơn giản. `policy_tool_worker` gọi tools qua HTTP POST request đến endpoint `http://localhost:8000/tools/call`.
 
-- `search_kb`: Công cụ tương tác trực tiếp với ChromaDB tìm kiếm tri thức (Knowledge Base) về SLA hoặc các SOP nội bộ.
-- `get_ticket_info`: Mock tool lấy lịch sử log từ Database giả lập để tra soát xem P1 ticket ai đang cầm.
+- `search_kb`: Semantic Search kết nối trực tiếp với ChromaDB (model `all-MiniLM-L6-v2`, lazy loading).
+- `get_ticket_info`: Tra cứu ticket từ `MOCK_TICKETS` và `tickets_db.json`.
+- `create_ticket`: **Hành động thực** — tạo ticket mới và **lưu bền vững** vào file JSON (`tickets_db.json`). Đây là điểm khác biệt so với mock thông thường.
 
 ---
 
@@ -49,29 +50,28 @@ Hệ thống sử dụng Kiến trúc Supervisor-Worker mô phỏng quy trình x
 > Chọn **1 quyết định thiết kế** mà nhóm thảo luận và đánh đổi nhiều nhất.
 > Phải có: (a) vấn đề gặp phải, (b) các phương án cân nhắc, (c) lý do chọn phương án đã chọn.
 
-**Quyết định:** Định hướng cấu hình (Routing) ưu tiên cho luồng khẩn cấp.
+**Quyết định:** Triển khai MCP Server dưới dạng **FastAPI HTTP Server (Advanced)** thay vì In-process Mock Class.
 
 **Bối cảnh vấn đề:**
-Hệ thống support ticket đôi khi nhận được các câu tra cứu luân phiên về các Lỗi không rõ (ERR) đi kèm yếu tố Khẩn cấp P1. Nếu dùng LLM bình thường sẽ sinh ra ảo giác và tự bịa phương án xử lý lỗi.
+Việc import trực tiếp `chromadb` và `sentence_transformers` vào mỗi Worker gây lỗi DLL trên Windows và tiêu tốn RAM không cần thiết khi chạy multi-process.
 
 **Các phương án đã cân nhắc:**
 
 | Phương án | Ưu điểm | Nhược điểm |
 |-----------|---------|-----------|
-| Gộp vô `retrieval_worker` chung | Nhanh, dễ code | Dễ sinh Halucination vì Doc không có nội dung cách fix mã lỗi. Ảnh hưởng bảo mật hệ thống khi Support máy tự chỉ đạo làm bừa. |
-| Thêm cờ `risk_high` & tách `human_review` | An toàn và chắc chắn. Dể kiểm tra bảo mật (Traceable). | Xử lí mất thời gian hơn, tốn công code Node phụ chờ người verify. |
+| Mock class trong Python | Dễ triển khai | Không phản ánh thực tế, khó mở rộng |
+| **FastAPI HTTP Server** | Tách biệt logic, tối ưu RAM, đạt +2 bonus | Tốn công cấu hình API |
 
 **Phương án đã chọn và lý do:**
-Nhóm ưu tiên "Cờ `risk_high` với mã lỗi lạ phải dừng lại cho người duyệt (HITL)". Lý do là trong mảng IT nội bộ doanh nghiệp, thao tác sửa mã Code lỗi lạ rủi ro rất cao, không được để Bot tự xử lý (zero trust). Đánh đổi delay lấy System Safety là tối quan trọng ở cấp phát phân quyền.
+Nhóm chọn FastAPI vì tính module hóa cao. Model embedding chỉ load 1 lần duy nhất khi server khởi động. Worker gọi tool qua JSON nên cực kỳ nhẹ. Đạt **+2 điểm Bonus** cho Sprint 3 Advanced.
 
-**Bằng chứng từ trace/code:**
-> Lấy từ output terminal khi chạy test_questions:
-
+**Bằng chứng từ code:**
 ```python
-⚠️  HITL TRIGGERED
-   Task: ERR-403-AUTH là lỗi gì và cách xử lý?
-   Reason: unknown error code + risk_high → human review
-   Action: Auto-approving in lab mode (set hitl_triggered=True)
+# mcp_api.py - FastAPI endpoint
+@app.post("/tools/call")
+def call_tool(request: ToolCallRequest):
+    result = dispatch_tool(request.tool_name, request.tool_input)
+    return result
 ```
 
 ---
@@ -91,11 +91,11 @@ Nhóm ưu tiên "Cờ `risk_high` với mã lỗi lạ phải dừng lại cho n
 
 **Câu pipeline fail hoặc partial:**
 - ID: `gq07` (Mức phạt tài chính cụ thể) 
-  Fail ở đâu: `confidence` thu về rất thấp (chỉ đạt `0.30`).
-  Root cause: Do RAG không tìm được chunk thông tin chứa "mức phạt tài chính", nên VectorDB bối rối và trả về dữ liệu rỗng hoặc sai lệch, khiến LLM e dè.
+  Fail ở đâu: Hệ thống thực hiện **Abstain** (từ chối trả lời).
+  Root cause: Tài liệu không chứa thông tin mức phạt cụ thể. Hệ thống tuân thủ nguyên tắc **Zero Hallucination** và trả về thông báo không tìm thấy thay vì bịa đặt.
 
 **Câu gq07 (abstain):** Nhóm xử lý thế nào?
-Từ chối trả lời (Abstain). Do prompt nhóm thiết kế ép model phải từ chối khi Conf dưới 0.4 hoặc khi context không đủ mạnh để trả lời.
+Hệ thống từ chối trả lời khi `confidence < 0.4` hoặc context không đủ mạnh. Đây là thiết kế đúng đắn giúp tránh bị phạt -50% theo rubric.
 
 **Câu gq09 (multi-hop khó nhất):** Trace ghi được 2 workers không? Kết quả thế nào?
 Trong trace (`route=policy_tool_worker`), câu này Supervisor điều hướng chính xác vào check chính sách cấp quyền Level 2 tạm thời nhờ cụm "Sự cố P1 ... cấp Level 2 access". Framework đã thành công ghép thông tin.
@@ -125,10 +125,10 @@ Khả năng Module hóa (Modularity). Chẳng hạn lúc thay đổi luật củ
 
 | Thành viên | Phần đã làm | Sprint |
 |------------|-------------|--------|
-|  | graph.py, routing logic, state management | 1 |
-|  | retrieval.py, policy_tool.py, synthesis.py, contracts | 2 |
-| Nguyễn Thị Ngọc | mcp_server.py, MCP integration trong policy_tool	 | 3 |
-| Nguyễn Việt Quang | Chạy Trace log, tính so sánh & Setup Báo cáo | 4 |
+|  | Supervisor graph.py, routing logic, state management | 1 |
+| Vũ Đức Minh | retrieval.py, policy_tool.py, synthesis.py, contracts | 2 |
+| Nguyễn Thị Ngọc | FastAPI mcp_api.py, MCP integration, Temporal Scoping | 3 |
+| Nguyễn Việt Quang | Trace log, eval_trace.py, so sánh & Báo cáo | 4 |
 
 **Điều nhóm làm tốt:**
 Giao tiếp trơn tru thông qua Git. Flow của ai người nấy đóng gói cẩn thận. Việc thống nhất chung 1 `AgentState` schema từ ban đầu giúp việc nối các Node không gặp lỗi Data Mapping.
