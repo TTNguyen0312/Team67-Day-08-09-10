@@ -5,7 +5,7 @@
 | Tên | Vai trò | Email |
 |-----|---------|-------|
 |  | Supervisor Owner |  |
-|  | Worker Owner |  |
+| Vũ Đức Minh| Worker Owner | vuducminhvn2003@gmail.com  |
 |  | MCP Owner |  |
 | Nguyễn Việt Quang | Trace & Docs Owner | nguyenvietquang.1601@gmail.com |
 
