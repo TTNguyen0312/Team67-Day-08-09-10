@@ -305,6 +305,16 @@ def run_graph(task: str) -> AgentState:
     """
     state = make_initial_state(task)
     result = _graph(state)
+    
+    try:
+        trace_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "artifacts", "traces")
+        os.makedirs(trace_dir, exist_ok=True)
+        trace_file = os.path.join(trace_dir, f"{result['run_id']}.json")
+        with open(trace_file, "w", encoding="utf-8") as f:
+            json.dump(result, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"⚠️  Could not save trace: {e}")
+    
     return result
 
 

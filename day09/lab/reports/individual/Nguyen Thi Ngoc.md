@@ -15,7 +15,11 @@ Trong dự án Lab Day 09, tôi chịu trách nhiệm chính về **Sprint 3 (MC
     2. `get_ticket_info` (dòng 200-223): Tra cứu ticket từ `MOCK_TICKETS` và file `tickets_db.json`.
     3. `create_ticket` (dòng 278-308): **Hành động thực** — tạo ticket và lưu vào `tickets_db.json` (khác mock thông thường).
 - **Tích hợp Worker**: Sửa `policy_tool.py` (hàm `_call_mcp_tool` dòng 31-60) để gọi MCP qua HTTP POST thay vì import trực tiếp.
-- **Temporal Scoping**: Thêm regex `\d{1,2}[/-]\d{1,2}[/-]\d{4}` vào `policy_tool.py` (dòng 110-125) để xử lý ngày tháng, phân biệt policy v3/v4.
+- **Temporal Scoping**: Thêm xử lý ngày tháng vào `policy_tool.py` (dòng 123-124) để phân biệt policy v3/v4 cho đơn hàng trước 01/02/2026:
+```python
+if "31/01" in task_lower or "30/01" in task_lower or "trước 01/02" in task_lower:
+    policy_version_note = "Đơn hàng đặt trước 01/02/2026 áp dụng chính sách v3..."
+```
 
 ### 2. Một quyết định kỹ thuật quan trọng
 
