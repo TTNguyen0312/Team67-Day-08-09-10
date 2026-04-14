@@ -10,23 +10,23 @@
       "source": "policy/refund-v4.pdf",
       "score": 0.663,
       "metadata": {
-        "source": "policy/refund-v4.pdf",
-        "department": "CS",
         "access": "internal",
+        "section": "Điều 2: Điều kiện được hoàn tiền",
         "effective_date": "2026-02-01",
-        "section": "Điều 2: Điều kiện được hoàn tiền"
+        "department": "CS",
+        "source": "policy/refund-v4.pdf"
       }
     },
     {
       "text": "Hoàn tiền — Điều kiện áp dụng:\nYêu cầu được gửi trong vòng 7 ngày kể từ thời điểm xác nhận đơn hàng.\n\nNgoại lệ không được hoàn tiền:\n- Sản phẩm thuộc danh mục hàng kỹ thuật số (license key, subscription).\n- Đơn hàng đã áp dụng mã giảm giá đặc biệt theo chương trình khuyến mãi Flash Sale.\n- Sản phẩm đã được kích hoạt hoặc đăng ký tài khoản.",
       "source": "policy/refund-v4.pdf",
-      "score": 0.6509,
+      "score": 0.6508,
       "metadata": {
+        "access": "internal",
+        "effective_date": "2026-02-01",
         "section": "Điều 3: Điều kiện áp dụng và ngoại lệ",
         "department": "CS",
-        "source": "policy/refund-v4.pdf",
-        "effective_date": "2026-02-01",
-        "access": "internal"
+        "source": "policy/refund-v4.pdf"
       }
     },
     {
@@ -34,11 +34,11 @@
       "source": "policy/refund-v4.pdf",
       "score": 0.5044,
       "metadata": {
-        "effective_date": "2026-02-01",
+        "source": "policy/refund-v4.pdf",
         "department": "CS",
         "access": "internal",
         "section": "Điều 4: Quy trình xử lý yêu cầu hoàn tiền",
-        "source": "policy/refund-v4.pdf"
+        "effective_date": "2026-02-01"
       }
     }
   ],
@@ -73,23 +73,23 @@
             "source": "policy/refund-v4.pdf",
             "score": 0.663,
             "metadata": {
-              "source": "policy/refund-v4.pdf",
-              "department": "CS",
               "access": "internal",
+              "section": "Điều 2: Điều kiện được hoàn tiền",
               "effective_date": "2026-02-01",
-              "section": "Điều 2: Điều kiện được hoàn tiền"
+              "department": "CS",
+              "source": "policy/refund-v4.pdf"
             }
           },
           {
             "text": "Hoàn tiền — Điều kiện áp dụng:\nYêu cầu được gửi trong vòng 7 ngày kể từ thời điểm xác nhận đơn hàng.\n\nNgoại lệ không được hoàn tiền:\n- Sản phẩm thuộc danh mục hàng kỹ thuật số (license key, subscription).\n- Đơn hàng đã áp dụng mã giảm giá đặc biệt theo chương trình khuyến mãi Flash Sale.\n- Sản phẩm đã được kích hoạt hoặc đăng ký tài khoản.",
             "source": "policy/refund-v4.pdf",
-            "score": 0.6509,
+            "score": 0.6508,
             "metadata": {
+              "access": "internal",
+              "effective_date": "2026-02-01",
               "section": "Điều 3: Điều kiện áp dụng và ngoại lệ",
               "department": "CS",
-              "source": "policy/refund-v4.pdf",
-              "effective_date": "2026-02-01",
-              "access": "internal"
+              "source": "policy/refund-v4.pdf"
             }
           },
           {
@@ -97,11 +97,11 @@
             "source": "policy/refund-v4.pdf",
             "score": 0.5044,
             "metadata": {
-              "effective_date": "2026-02-01",
+              "source": "policy/refund-v4.pdf",
               "department": "CS",
               "access": "internal",
               "section": "Điều 4: Quy trình xử lý yêu cầu hoàn tiền",
-              "source": "policy/refund-v4.pdf"
+              "effective_date": "2026-02-01"
             }
           }
         ],
@@ -111,10 +111,10 @@
         "total_found": 3
       },
       "error": null,
-      "timestamp": "2026-04-14T15:51:33.273965"
+      "timestamp": "2026-04-14T15:58:40.773273"
     }
   ],
-  "final_answer": "Không, khách hàng Flash Sale không được hoàn tiền vì sản phẩm thuộc danh mục hàng đã áp dụng mã giảm giá đặc biệt theo chương trình khuyến mãi Flash Sale, theo chính sách ngoại lệ [2][3].",
+  "final_answer": "Không, khách hàng không thể yêu cầu hoàn tiền cho sản phẩm lỗi trong trường hợp Flash Sale. Theo chính sách, đơn hàng Flash Sale không được hoàn tiền, bất kể sản phẩm có lỗi hay không [1][2][3].",
   "sources": [
     "policy/refund-v4.pdf"
   ],
@@ -125,15 +125,15 @@
     "[policy_tool_worker] called MCP search_kb",
     "[policy_tool_worker] policy_applies=False, exceptions=1",
     "[synthesis_worker] answer generated, confidence=0.56, sources=['policy/refund-v4.pdf']",
-    "[graph] completed in 3930ms"
+    "[graph] completed in 2784ms"
   ],
   "workers_called": [
     "policy_tool_worker",
     "synthesis_worker"
   ],
   "supervisor_route": "policy_tool_worker",
-  "latency_ms": 3930,
-  "run_id": "run_20260414_155131",
+  "latency_ms": 2784,
+  "run_id": "run_20260414_155840",
   "worker_io_logs": [
     {
       "worker": "policy_tool_worker",
@@ -157,7 +157,7 @@
         "has_policy": true
       },
       "output": {
-        "answer_length": 187,
+        "answer_length": 194,
         "sources": [
           "policy/refund-v4.pdf"
         ],

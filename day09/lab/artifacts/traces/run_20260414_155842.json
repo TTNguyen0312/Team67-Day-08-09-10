@@ -10,11 +10,11 @@
       "source": "it/access-control-sop.md",
       "score": 0.5871,
       "metadata": {
+        "department": "IT Security",
         "section": "Section 4: Escalation khi cần thay đổi quyền hệ thống",
         "effective_date": "2026-01-01",
-        "department": "IT Security",
-        "source": "it/access-control-sop.md",
-        "access": "internal"
+        "access": "internal",
+        "source": "it/access-control-sop.md"
       }
     },
     {
@@ -22,11 +22,11 @@
       "source": "it/access-control-sop.md",
       "score": 0.5002,
       "metadata": {
+        "department": "IT Security",
         "effective_date": "2026-01-01",
         "access": "internal",
-        "department": "IT Security",
-        "section": "Section 2: Phân cấp quyền truy cập",
-        "source": "it/access-control-sop.md"
+        "source": "it/access-control-sop.md",
+        "section": "Section 2: Phân cấp quyền truy cập"
       }
     },
     {
@@ -34,11 +34,11 @@
       "source": "it/access-control-sop.md",
       "score": 0.4921,
       "metadata": {
-        "section": "Section 3: Quy trình yêu cầu cấp quyền",
         "source": "it/access-control-sop.md",
         "effective_date": "2026-01-01",
-        "access": "internal",
-        "department": "IT Security"
+        "section": "Section 3: Quy trình yêu cầu cấp quyền",
+        "department": "IT Security",
+        "access": "internal"
       }
     }
   ],
@@ -67,11 +67,11 @@
             "source": "it/access-control-sop.md",
             "score": 0.5871,
             "metadata": {
+              "department": "IT Security",
               "section": "Section 4: Escalation khi cần thay đổi quyền hệ thống",
               "effective_date": "2026-01-01",
-              "department": "IT Security",
-              "source": "it/access-control-sop.md",
-              "access": "internal"
+              "access": "internal",
+              "source": "it/access-control-sop.md"
             }
           },
           {
@@ -79,11 +79,11 @@
             "source": "it/access-control-sop.md",
             "score": 0.5002,
             "metadata": {
+              "department": "IT Security",
               "effective_date": "2026-01-01",
               "access": "internal",
-              "department": "IT Security",
-              "section": "Section 2: Phân cấp quyền truy cập",
-              "source": "it/access-control-sop.md"
+              "source": "it/access-control-sop.md",
+              "section": "Section 2: Phân cấp quyền truy cập"
             }
           },
           {
@@ -91,11 +91,11 @@
             "source": "it/access-control-sop.md",
             "score": 0.4921,
             "metadata": {
-              "section": "Section 3: Quy trình yêu cầu cấp quyền",
               "source": "it/access-control-sop.md",
               "effective_date": "2026-01-01",
-              "access": "internal",
-              "department": "IT Security"
+              "section": "Section 3: Quy trình yêu cầu cấp quyền",
+              "department": "IT Security",
+              "access": "internal"
             }
           }
         ],
@@ -105,7 +105,7 @@
         "total_found": 3
       },
       "error": null,
-      "timestamp": "2026-04-14T15:51:36.900281"
+      "timestamp": "2026-04-14T15:58:43.456743"
     },
     {
       "tool": "get_ticket_info",
@@ -129,10 +129,10 @@
         ]
       },
       "error": null,
-      "timestamp": "2026-04-14T15:51:36.900281"
+      "timestamp": "2026-04-14T15:58:43.456743"
     }
   ],
-  "final_answer": "Để cấp quyền Level 3 khẩn cấp nhằm khắc phục sự cố P1, quy trình như sau:\n\n1. **On-call IT Admin** có thể cấp quyền tạm thời (tối đa 24 giờ) sau khi được **Tech Lead** phê duyệt bằng lời.\n2. Sau 24 giờ, phải có **ticket chính thức** hoặc quyền sẽ bị thu hồi tự động.\n3. Mọi quyền tạm thời phải được **ghi log** vào hệ thống Security Audit.\n\nLưu ý: Quy trình này là ngoại lệ cho quy trình cấp quyền thông thường. [1]",
+  "final_answer": "Để cấp quyền Level 3 khẩn cấp nhằm khắc phục sự cố P1, quy trình như sau:\n\n1. **On-call IT Admin** có thể cấp quyền tạm thời (tối đa 24 giờ) sau khi được **Tech Lead** phê duyệt bằng lời.\n2. Sau 24 giờ, phải có **ticket chính thức** hoặc quyền sẽ bị thu hồi tự động.\n3. Mọi quyền tạm thời phải được **ghi log** vào hệ thống Security Audit.\n\nLưu ý: Quy trình này là ngoại lệ cho quy trình cấp quyền thông thường [1].",
   "sources": [
     "it/access-control-sop.md"
   ],
@@ -144,15 +144,15 @@
     "[policy_tool_worker] called MCP get_ticket_info",
     "[policy_tool_worker] policy_applies=True, exceptions=0",
     "[synthesis_worker] answer generated, confidence=0.53, sources=['it/access-control-sop.md']",
-    "[graph] completed in 4661ms"
+    "[graph] completed in 3183ms"
   ],
   "workers_called": [
     "policy_tool_worker",
     "synthesis_worker"
   ],
   "supervisor_route": "policy_tool_worker",
-  "latency_ms": 4661,
-  "run_id": "run_20260414_155135",
+  "latency_ms": 3183,
+  "run_id": "run_20260414_155842",
   "worker_io_logs": [
     {
       "worker": "policy_tool_worker",
