@@ -4,10 +4,10 @@
 **Thành viên:**
 | Tên | Vai trò (Day 10) | Email |
 |-----|------------------|-------|
-| Nguyễn Trọng Tiến | Ingestion / Raw Owner | ___ |
+| Nguyễn Việt Quang | Ingestion / Raw Owner | ___ |
 | Nguyễn Thị Ngọc, Trương Quang Lộc | Cleaning & Quality Owner | ___ |
 | Vũ Đức Minh | Embed & Idempotency Owner | ___ |
-| Nguyễn Việt Quang | Monitoring / Docs Owner | nguyenvietquang.1601@gmail.com |
+| Nguyễn Trọng Tiến | Monitoring / Docs Owner | nguyenvietquang.1601@gmail.com |
 
 **Ngày nộp:** 2026-04-15  
 **Repo:** https://github.com/TTNguyen0312/Team67-Day-08-09-10  
