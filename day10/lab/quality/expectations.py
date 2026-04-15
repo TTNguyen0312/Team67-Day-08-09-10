@@ -112,5 +112,50 @@ def run_expectations(cleaned_rows: List[Dict[str, Any]]) -> Tuple[List[Expectati
         )
     )
 
+    # E7: chunk_text không quá dài (> 1000 ký tự làm loãng ngữ cảnh RAG)
+    # Severity: warn — chunk dài không sai về mặt dữ liệu, nhưng làm giảm chất lượng retrieval.
+    # Metric impact: long_chunks tăng khi inject chunk mô tả rất dài vào Sprint 3.
+    long = [r for r in cleaned_rows if len((r.get("chunk_text") or "")) > 1000]
+    ok7 = len(long) == 0
+    results.append(
+        ExpectationResult(
+            "chunk_max_length_1000",
+            ok7,
+            "warn",
+            f"long_chunks={len(long)}",
+        )
+    )
+
+    # E8: chunk_id phải duy nhất trong toàn bộ tập cleaned
+    # Severity: halt — chunk_id trùng khiến Chroma upsert ghi đè vector sai,
+    # phá vỡ tính idempotent của embed và gây lỗi retrieval không thể phát hiện.
+    # Metric impact: duplicate_chunk_ids > 0 khi cleaning_rules sinh ra cùng hash
+    # (ví dụ hai dòng giống hệt nhau lọt qua dedup do bug, hoặc inject Sprint 3 thêm bản sao).
+    all_ids = [r.get("chunk_id", "") for r in cleaned_rows]
+    duplicate_ids = len(all_ids) - len(set(all_ids))
+    ok8 = duplicate_ids == 0
+    results.append(
+        ExpectationResult(
+            "unique_chunk_id",
+            ok8,
+            "halt",
+            f"duplicate_chunk_ids={duplicate_ids}",
+        )
+    )
+
     halt = any(not r.passed and r.severity == "halt" for r in results)
     return results, halt
+
+
+if __name__ == "__main__":
+    dummy = [
+        {"chunk_id": "id_1", "doc_id": "policy_refund_v4", "chunk_text": "Hoàn tiền trong 7 ngày làm việc.", "effective_date": "2026-01-01"},
+        {"chunk_id": "id_2", "doc_id": "hr_leave_policy",  "chunk_text": "Nhân viên có 12 ngày phép năm.", "effective_date": "2026-03-01"},
+    ]
+    results, halt = run_expectations(dummy)
+    count = 0
+    for r in results:
+        status = "PASS" if r.passed else "FAIL"
+        print(f"{count}. [{r.severity.upper()}] [{status.upper()}] {r.name}: - {r.detail}")
+        count += 1
+    print(f"\nshould_halt = {halt}")
