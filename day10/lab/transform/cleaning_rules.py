@@ -8,6 +8,7 @@ Sinh viên thêm ≥3 rule mới: mỗi rule phải ghi `metric_impact` (xem REA
 from __future__ import annotations
 
 import csv
+import datetime
 import hashlib
 import re
 from pathlib import Path
@@ -25,6 +26,7 @@ ALLOWED_DOC_IDS = frozenset(
 
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _DMY_SLASH = re.compile(r"^(\d{2})/(\d{2})/(\d{4})$")
+_EMAIL_PATTERN = re.compile(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+")
 
 
 def _norm_text(s: str) -> str:
@@ -77,6 +79,9 @@ def clean_rows(
     4) Quarantine: chunk_text rỗng hoặc effective_date rỗng sau chuẩn hoá.
     5) Loại trùng nội dung chunk_text (giữ bản đầu).
     6) Fix stale refund: policy_refund_v4 chứa '14 ngày làm việc' → 7 ngày.
+    7) Quarantine: exported_at nằm trong tương lai (lỗi hệ thống). [metric_impact: data_integrity]
+    8) Quarantine: chunk chứa thông tin PII (email). [metric_impact: security_compliance]
+    9) Chuẩn hoá khoảng trắng thừa (whitespace normalization). [metric_impact: embedding_quality]
     """
     quarantine: List[Dict[str, Any]] = []
     seen_text: set[str] = set()
@@ -88,6 +93,17 @@ def clean_rows(
         text = raw.get("chunk_text", "")
         eff_raw = raw.get("effective_date", "")
         exported_at = raw.get("exported_at", "")
+
+        # RULE 7: Future Date Check
+        if exported_at:
+            try:
+                ts = exported_at.replace("Z", "+00:00")
+                dt = datetime.datetime.fromisoformat(ts)
+                if dt > datetime.datetime.now(datetime.timezone.utc):
+                    quarantine.append({**raw, "reason": "future_exported_at"})
+                    continue
+            except (ValueError, TypeError):
+                pass
 
         if doc_id not in ALLOWED_DOC_IDS:
             quarantine.append({**raw, "reason": "unknown_doc_id"})
@@ -115,13 +131,20 @@ def clean_rows(
             quarantine.append({**raw, "reason": "missing_chunk_text"})
             continue
 
+        # RULE 8: PII Email Detection
+        if _EMAIL_PATTERN.search(text):
+            quarantine.append({**raw, "reason": "pii_detected_email"})
+            continue
+
         key = _norm_text(text)
         if key in seen_text:
             quarantine.append({**raw, "reason": "duplicate_chunk_text"})
             continue
         seen_text.add(key)
 
-        fixed_text = text
+        # RULE 9: Whitespace Normalization (giữ case nhưng loại bỏ space thừa)
+        fixed_text = " ".join(text.strip().split())
+
         if apply_refund_window_fix and doc_id == "policy_refund_v4":
             if "14 ngày làm việc" in fixed_text:
                 fixed_text = fixed_text.replace(
