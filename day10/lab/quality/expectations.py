@@ -9,7 +9,50 @@ from __future__ import annotations
 import datetime
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
+try:
+    from pydantic import BaseModel, field_validator
+    from pydantic import ValidationError as _PydanticValidationError
+
+    class CleanedChunkSchema(BaseModel):
+        """Pydantic schema mirroring contracts/data_contract.yaml — schema_cleaned section."""
+
+        chunk_id: str
+        doc_id: str
+        chunk_text: str
+        effective_date: str
+        exported_at: Optional[str] = ""
+
+        @field_validator("chunk_id", "doc_id", mode="before")
+        @classmethod
+        def required_nonempty(cls, v: Any) -> str:
+            s = str(v).strip()
+            if not s:
+                raise ValueError("field must not be empty")
+            return s
+
+        @field_validator("chunk_text", mode="before")
+        @classmethod
+        def chunk_text_min_length(cls, v: Any) -> str:
+            s = str(v)
+            if len(s) < 8:
+                raise ValueError(f"chunk_text too short: {len(s)} < 8 chars")
+            return s
+
+        @field_validator("effective_date", mode="before")
+        @classmethod
+        def effective_date_iso_format(cls, v: Any) -> str:
+            s = str(v).strip()
+            if not re.match(r"^\d{4}-\d{2}-\d{2}$", s):
+                raise ValueError(f"effective_date must be YYYY-MM-DD, got: {s!r}")
+            return s
+
+    _PYDANTIC_AVAILABLE = True
+
+except ImportError:
+    _PYDANTIC_AVAILABLE = False
+    CleanedChunkSchema = None  # type: ignore[assignment,misc]
 
 
 @dataclass
@@ -214,6 +257,44 @@ def run_expectations(cleaned_rows: List[Dict[str, Any]]) -> Tuple[List[Expectati
             f"distinct_doc_ids={distinct_docs}",
         )
     )
+
+    # E13 (Pydantic): schema validation against data contract (contracts/data_contract.yaml)
+    # Severity: halt — CleanedChunkSchema enforces required fields non-empty, chunk_text ≥ 8
+    # chars, and effective_date YYYY-MM-DD at the type/constraint level using pydantic v2.
+    # This catches any discrepancy between cleaning output and the published data contract
+    # that individual manual checks might miss (e.g. wrong type coercion, missing field).
+    # Metric impact: pydantic_violations > 0 when inject Sprint 3 bypasses cleaning rules
+    # and inserts rows with empty doc_id, malformed dates, or short chunk_text.
+    if not _PYDANTIC_AVAILABLE:
+        results.append(
+            ExpectationResult(
+                "pydantic_schema_validation",
+                False,
+                "warn",
+                "pydantic not installed — schema validation skipped (pip install pydantic>=2.0.0)",
+            )
+        )
+    else:
+        pydantic_errors: List[str] = []
+        for i, row in enumerate(cleaned_rows):
+            try:
+                CleanedChunkSchema(**{k: row.get(k, "") for k in ("chunk_id", "doc_id", "chunk_text", "effective_date", "exported_at")})
+            except _PydanticValidationError as exc:
+                row_label = row.get("chunk_id") or f"row[{i}]"
+                for err in exc.errors():
+                    pydantic_errors.append(f"{row_label}.{err['loc'][0]}: {err['msg']}")
+        ok13 = len(pydantic_errors) == 0
+        detail13 = f"pydantic_violations={len(pydantic_errors)}"
+        if pydantic_errors:
+            detail13 += " | " + "; ".join(pydantic_errors[:5])  # cap at 5 for log readability
+        results.append(
+            ExpectationResult(
+                "pydantic_schema_validation",
+                ok13,
+                "halt",
+                detail13,
+            )
+        )
 
     halt = any(not r.passed and r.severity == "halt" for r in results)
     return results, halt
