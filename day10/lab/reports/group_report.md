@@ -4,10 +4,10 @@
 **Thành viên:**
 | Tên | Vai trò (Day 10) | Email |
 |-----|------------------|-------|
-| Nguyễn Việt Quang | Ingestion / Raw Owner | ___ |
-| Nguyễn Thị Ngọc, Trương Quang Lộc | Cleaning & Quality Owner | ngocntit@gmail.com |
-| Vũ Đức Minh | Embed & Idempotency Owner | ___ |
-| Nguyễn Trọng Tiến | Monitoring / Docs Owner | nguyenvietquang.1601@gmail.com |
+| Nguyễn Việt Quang | Ingestion / Raw Owner | nguyenvietquang.1601@gmail.com |
+| Nguyễn Thị Ngọc, Trương Quang Lộc | Cleaning & Quality Owner | ngocntit@gmail.com - tqloc1409@gmail.com |
+| Vũ Đức Minh | Embed & Idempotency Owner | vuducminhvn2003@gmail.com |
+| Nguyễn Trọng Tiến | Monitoring / Docs Owner | trongtiennew@gmail.com |
 
 **Ngày nộp:** 2026-04-15  
 **Repo:** https://github.com/TTNguyen0312/Team67-Day-08-09-10  
@@ -42,7 +42,7 @@ python etl_pipeline.py run --run-id official_run_v1
 
 ## 2. Cleaning & expectation (150–200 từ)
 
-Baseline có 6 rule (allowlist `doc_id`, chuẩn hóa ngày, quarantine HR cũ, loại chunk rỗng, dedupe, fix refund 14→7) và 6 expectation (E1–E6). Nhóm đã mở rộng thêm **5 rule mới** và **6 expectation mới**.
+Baseline có 6 rule (allowlist `doc_id`, chuẩn hóa ngày, quarantine HR cũ, loại chunk rỗng, dedupe, fix refund 14→7) và 6 expectation (E1–E6). Nhóm đã mở rộng thêm **5 rule mới** và **7 expectation mới** (E7–E12 custom + **E13 pydantic schema validation — bonus +2**).
 
 ### 2a. Bảng metric_impact (bắt buộc — chống trivial)
 
@@ -52,6 +52,7 @@ Baseline có 6 rule (allowlist `doc_id`, chuẩn hóa ngày, quarantine HR cũ, 
 | Audit/Note Removal (Rule 8-9) | Context chứa nhiễu | Context sạch (chỉ chứa policy) | `cleaned_csv` không còn marker `[cleaned: ...]` |
 | Unique Chunk ID (Exp E8) | Upsert ghi đè mập mờ | Pipeline HALT nếu trùng | Log: `expectation[unique_chunk_id] FAIL (halt)` |
 | Noise Detection (Exp E10) | Eval pass sai do ghi chú | Pipeline HALT nếu lọt nhiễu | Log: `expectation[no_system_noise_in_chunk_text] FAIL` |
+| **Pydantic Schema Validation (E13)** **(+2 bonus)** | Không có schema-level type check | `pydantic_violations=0` (clean) vs `>0` (inject) | Log: `expectation[pydantic_schema_validation]`; `quality/expectations.py` L261–L292 |
 
 **Rule chính (baseline + mở rộng):**
 
@@ -77,7 +78,7 @@ Chúng tôi chạy pipeline với flag `--no-refund-fix --skip-validate`. Điề
 - **Sau fix (Clean run)**: Chunk 14 ngày được sửa thành 7 ngày, đồng thời xóa ghi chú nhiễu. `hits_forbidden=false`, `contains_expected=true`.
 - **Tác động**: Độ chính xác của Agent tăng từ 0% lên 100% cho các câu hỏi liên quan đến chính sách hoàn tiền.
 
-**Phân tích:** Câu hỏi then chốt `q_refund_window` cho thấy rõ tác động: khi inject (skip refund fix), `hits_forbidden=yes` vì chunk stale "14 ngày làm việc" vẫn nằm trong top-k context. Sau khi fix, `hits_forbidden=no` — pipeline đã loại bỏ thông tin sai.
+**Phân tích:** Câu hỏi then chốt `q_refund_window` cho thấy rõ tác động: khi inject (skip refund fix), `hits_forbidden=yes` vì chunk stale "14 ngày làm việc" vẫn nằm trong top-k context. Sau khi fix, `hits_forbidden=no`, do pipeline đã loại bỏ thông tin sai.
 
 Chứng cứ file: `artifacts/eval/eval_after_dirty.csv` (inject) vs `artifacts/eval/eval_before_clean.csv` (fix).
 
@@ -106,9 +107,9 @@ Có. Chúng tôi tích hợp bằng cách chỉ định `CHROMA_COLLECTION=day10
 
 ## 6. Rủi ro còn lại & việc chưa làm
 
-- **Freshness luôn FAIL trên dataset mẫu** — cần dữ liệu export mới hơn hoặc cơ chế cập nhật `exported_at` tự động trong pipeline thực tế.
+- **Freshness luôn FAIL trên dataset mẫu**, do cần dữ liệu export mới hơn hoặc cơ chế cập nhật `exported_at` tự động trong pipeline thực tế.
 - **Rule 7 (future date)** không có tác động đo được trên CSV mẫu hiện tại (không dòng nào có ngày tương lai). Cần inject test riêng để chứng minh.
-- **Chưa tích hợp Great Expectations / pydantic** — expectation suite hiện tại dùng custom code đơn giản.
-- **Freshness chỉ đo 1 boundary (publish)** — chưa đo boundary ingest riêng (bonus +1 điểm).
-- **Chưa có LLM-judge eval** — chỉ dùng keyword-based retrieval eval.
+- **Đã tích hợp pydantic v2** (xem E13 bên dưới). Expectation E13 dùng `pydantic.BaseModel` validate schema toàn bộ cleaned rows trước khi embed; `pydantic_violations > 0` khi inject bypass cleaning rules. **(+2 bonus)**
+- **Freshness chỉ đo 1 boundary (publish)** , chưa đo boundary ingest riêng (bonus +1 điểm).
+- **Chưa có LLM-judge eval**, chỉ dùng keyword-based retrieval eval.
 - **`access_control_sop.txt`** chưa được thêm vào allowlist và pipeline.
