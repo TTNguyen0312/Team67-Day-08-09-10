@@ -1,191 +1,102 @@
 # Quality report — Lab Day 10 (nhóm)
 
-**run_id:** sprint3_clean → sprint3_dirty → sprint3_fixed
+**run_id:** sprint3_clean → sprint3_dirty → sprint3_fixed  
 **Ngày:** 2026-04-15
 
 ---
 
 ## 1. Tóm tắt số liệu
 
-| Chỉ số             | Clean (sprint3_clean) | Dirty (sprint3_dirty)    | Fixed (sprint3_fixed) | Ghi chú                              |
-| ------------------ | --------------------- | ------------------------ | --------------------- | ------------------------------------ |
-| raw_records        | 10                    | 10                       | 10                    | Dữ liệu đầu vào không đổi            |
-| cleaned_records    | 6                     | 6                        | 6                     | Sau cleaning giữ lại 6 record hợp lệ |
-| quarantine_records | 4                     | 4                        | 4                     | 4 record bị loại do lỗi              |
-| Expectation halt?  | No (OK)               | **FAIL (refund policy)** | No (OK)               | Dirty run phát hiện violation        |
+| Chỉ số | sprint3_clean | sprint3_dirty | sprint3_fixed | Ghi chú |
+|--------|:---:|:---:|:---:|---------|
+| raw_records | 10 | 10 | 10 | Nguồn `policy_export_dirty.csv` |
+| cleaned_records | 6 | 6 | 6 | 4 record bị quarantine ở cả 3 run |
+| quarantine_records | 4 | 4 | 4 | unknown_doc_id, missing_effective_date, stale_hr_policy, duplicate_chunk_text |
+| no_refund_fix | false | **true** | false | Dirty: bỏ qua fix 14→7 ngày |
+| skipped_validate | false | **true** | false | Dirty: bỏ qua expectations |
+| Expectation halt? | No | **FAIL** (nếu validate bật) | No | E3 `refund_no_stale_14d_window` violations=1 |
+| embed_prune_removed | 0 | 0 | **1** | sprint3_fixed xóa chunk "14 ngày" khỏi Chroma |
 
 ---
 
 ## 2. Before / after retrieval (bắt buộc)
 
-> File eval:
-
-* `artifacts/eval/eval_after_clean.csv`
-* `artifacts/eval/eval_after_dirty.csv`
-* `artifacts/eval/eval_before_clean.csv`
-
----
+Eval files: `artifacts/eval/eval_before_clean.csv`, `artifacts/eval/eval_after_dirty.csv`
 
 ### Câu hỏi then chốt: refund window (`q_refund_window`)
 
-**Trước (clean):**
+| Scenario | top1_doc_id | top1_preview (truncated) | contains_expected | hits_forbidden |
+|----------|-------------|--------------------------|:-:|:-:|
+| **Before (clean)** | policy_refund_v4 | "...7 ngày làm việc kể từ xác nhận đơn." | **yes** | **no** |
+| **After dirty inject** | policy_refund_v4 | "...14 ngày làm việc kể từ xác nhận đơn." | yes | **YES** |
+| **After fix** | policy_refund_v4 | "...7 ngày làm việc kể từ xác nhận đơn." | **yes** | **no** |
 
-* Retrieval chỉ chứa:
-
-  > "refund within 7 working days"
-* `hits_forbidden = 0`
-* Không tồn tại policy sai
-
----
-
-**Trong trạng thái dirty:**
-
-* Expectation:
-
-  ```text
-  refund_no_stale_14d_window FAIL (violations=1)
-  ```
-* Điều này cho thấy tồn tại policy:
-
-  > "refund within 14 working days"
-* Nếu bỏ validate (`--skip-validate`), chunk sai sẽ được embed
-* Retrieval có nguy cơ:
-
-  * chứa 14 ngày
-  * hoặc lẫn 7 và 14 ngày trong context
-* `hits_forbidden > 0`
-
----
-
-**Sau khi fix:**
-
-* Expectation quay lại:
-
-  ```text
-  violations = 0
-  ```
-* Policy sai đã bị loại bỏ
-* Retrieval quay về:
-
-  > "7 working days"
-* `hits_forbidden = 0`
-
----
-
- Kết luận:
-
-* Dirty data làm hệ thống retrieval bị nhiễu
-* Validation giúp phát hiện và chặn dữ liệu sai
-* Fix pipeline giúp khôi phục chất lượng retrieval
+Kết quả: `hits_forbidden` chuyển từ `no → YES → no` qua 3 scenario, chứng minh dirty data làm retrieval trả về chunk sai và pipeline fix khôi phục đúng.
 
 ---
 
 ### Merit: versioning HR (`q_leave_version`)
 
-**Clean:**
+| Scenario | top1_doc_id | contains_expected | hits_forbidden | top1_doc_expected |
+|----------|-------------|:-:|:-:|:-:|
+| **Before (clean)** | hr_leave_policy | yes | no | yes |
+| **After dirty inject** | hr_leave_policy | yes | no | yes |
+| **After fix** | hr_leave_policy | yes | no | yes |
 
-* Policy đúng:
-
-  > "12 days of annual leave"
-* Không có conflict
-
-**Dirty:**
-
-* Có khả năng tồn tại policy cũ (10 ngày)
-* Gây conflict version trong retrieval
-
-**Fixed:**
-
-* Policy cũ bị loại
-* Retrieval ổn định lại
-
----
-
- Kết luận:
-
-* Version control là yếu tố quan trọng trong data pipeline
-* Nếu không kiểm soát, AI sẽ trả lời dựa trên dữ liệu lỗi thời
+HR stale chunk (10 ngày, effective_date=2025-01-01) bị quarantine bởi Rule 3 (`stale_hr_policy_effective_date`) ở tất cả các run, kể cả khi `--no-refund-fix` được bật, vì HR stale check độc lập với refund fix flag. `top1_doc_expected=yes` ổn định qua 3 scenario.
 
 ---
 
 ## 3. Freshness & monitor
 
-Kết quả cho cả 3 run:
+```
+freshness_check = FAIL
+latest_exported_at : 2026-04-10T08:00:00
+age_hours          : ~122 h
+sla_hours          : 24 h
+reason             : freshness_sla_exceeded
+```
 
-* Status: **FAIL**
-* latest_exported_at: 2026-04-10T08:00:00
-* age_hours: ~122 giờ
-* SLA: 24 giờ
-
----
-
- Giải thích:
-
-* Dữ liệu đã vượt SLA (>5 ngày)
-* Pipeline phát hiện đúng dữ liệu stale
-
----
-
- Ý nghĩa:
-
-* Dù dữ liệu clean và validate đúng, vẫn có thể lỗi do outdated
-* Freshness check là lớp bảo vệ thứ 2 sau validation
+Kết quả FAIL ở cả 3 run vì `exported_at` trong lab data cố định tại 2026-04-10 (5 ngày trước khi chạy). Trong production, data source sẽ export timestamp thực và freshness check sẽ PASS nếu pipeline chạy đủ thường xuyên.
 
 ---
 
 ## 4. Corruption inject (Sprint 3)
 
-Nhóm thực hiện inject dữ liệu lỗi bằng cách:
+**Cách inject:** chạy pipeline với `--no-refund-fix --skip-validate`:
 
-* Thêm **stale refund policy (14 ngày)**
-* Thêm **duplicate record**
-* Thêm **doc_id không hợp lệ**
-* Thêm **lỗi định dạng ngày**
+```bash
+python etl_pipeline.py run --run-id sprint3_dirty --no-refund-fix --skip-validate
+```
 
----
+Hiệu ứng:
+- Chunk `policy_refund_v4_2_22e933b0d6b582d6` ("14 ngày làm việc") được embed vào Chroma thay vì bị fix
+- `eval_after_dirty.csv`: `q_refund_window` → `hits_forbidden=yes`, top1_preview chứa "14 ngày"
+- Nếu validate bật (không `--skip-validate`): E3 HALT ngăn không cho embed
 
-### Quan sát:
+**Cách phát hiện và fix:**
 
-* Trong run `sprint3_dirty`:
+```bash
+# Phát hiện
+python eval_retrieval.py --out artifacts/eval/eval_after_dirty.csv
+# → hits_forbidden=yes cho q_refund_window
 
-  * Expectation detect:
+# Fix
+python etl_pipeline.py run --run-id sprint3_fixed
+# → prune xóa chunk "14 ngày" (embed_prune_removed=1)
+# → upsert lại chunk "7 ngày"
 
-    ```text
-    violations = 1
-    ```
-  * embed_prune_removed = 1 → hệ thống loại bỏ vector stale
-
----
-
-### Khi bypass validation:
-
-* Nếu chạy với:
-
-  ```bash
-  --skip-validate --no-refund-fix
-  ```
-* Dữ liệu sai sẽ được embed vào vector DB
-* Gây:
-
-  * retrieval sai
-  * context conflict
-  * `hits_forbidden` tăng
-
----
-
- Điều này chứng minh:
-
-* Validation không chỉ để “check cho vui”
-* Nó là lớp bảo vệ critical cho hệ thống AI
+# Xác nhận
+python grading_run.py --out artifacts/eval/grading_run.jsonl
+# → gq_d10_01: hits_forbidden=false
+```
 
 ---
 
 ## 5. Hạn chế & việc chưa làm
 
-* Chưa có cơ chế resolve conflict (chỉ loại bỏ, chưa hợp nhất)
-* Chưa có alert tự động khi expectation FAIL
-* Chưa có cơ chế auto rollback khi phát hiện data lỗi
-* Retrieval evaluation còn đơn giản (keyword-based)
-* Chưa áp dụng filter theo thời gian (effective_date)
-
----
+- Freshness SLA (24h) luôn FAIL trong lab do timestamp cố định, cần data source với export timestamp thực
+- Prune chỉ chạy khi embed thành công; nếu HALT xảy ra, chunk dirty từ run trước vẫn tồn tại trong Chroma cho đến lần fix
+- Chưa có auto-rollback: nếu fix run thất bại giữa chừng, Chroma có thể ở trạng thái trung gian
+- Eval dùng keyword matching, không phát hiện paraphrase (ví dụ: "hai tuần làm việc" thay cho "14 ngày làm việc")
+- Chưa filter retrieval theo `effective_date`, chunk cũ có thể vẫn được retrieve nếu không bị quarantine
