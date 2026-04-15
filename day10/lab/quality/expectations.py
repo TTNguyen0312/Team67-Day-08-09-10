@@ -144,6 +144,77 @@ def run_expectations(cleaned_rows: List[Dict[str, Any]]) -> Tuple[List[Expectati
         )
     )
 
+    # E9: không còn thẻ HTML trong chunk_text sau clean
+    # Severity: halt — HTML tags (<b>...</b>, <p>...</p>, v.v.) thay đổi ngữ nghĩa embedding
+    # và có thể rò rỉ cấu trúc markup vào RAG context, gây câu trả lời không nhất quán.
+    # Metric impact: html_contaminated_chunks > 0 khi inject chunk có HTML mà Rule 8 bị tắt.
+    _html_re = re.compile(r"<[^>]+>")
+    html_dirty = [r for r in cleaned_rows if _html_re.search(r.get("chunk_text") or "")]
+    ok9 = len(html_dirty) == 0
+    results.append(
+        ExpectationResult(
+            "no_html_tags_in_chunk_text",
+            ok9,
+            "halt",
+            f"html_contaminated_chunks={len(html_dirty)}",
+        )
+    )
+
+    # E10: không còn audit tag hệ thống hoặc ghi chú nội bộ trong chunk_text sau clean
+    # Severity: halt — "[cleaned: ...]" và "(ghi chú: ...)" là nhiễu hệ thống không thuộc
+    # nội dung policy; nếu còn tồn tại sau clean, RAG sẽ trả về context bị nhiễu và
+    # eval `contains_expected` có thể pass sai do keywords nằm trong phần ghi chú.
+    # Metric impact: noise_contaminated_chunks > 0 khi Rules 9–10 bị bỏ qua trong inject.
+    _audit_re = re.compile(r"\[cleaned:")
+    _note_re = re.compile(r"\(ghi chú:")
+    noise_dirty = [
+        r for r in cleaned_rows
+        if _audit_re.search(r.get("chunk_text") or "") or _note_re.search(r.get("chunk_text") or "")
+    ]
+    ok10 = len(noise_dirty) == 0
+    results.append(
+        ExpectationResult(
+            "no_system_noise_in_chunk_text",
+            ok10,
+            "halt",
+            f"noise_contaminated_chunks={len(noise_dirty)}",
+        )
+    )
+
+    # E11: tỷ lệ exported_at được điền phải đạt ≥ 80%
+    # Severity: warn — trường exported_at là watermark freshness; nếu thiếu, freshness_check
+    # fallback về run_timestamp (thời điểm pipeline chạy), che khuất độ trễ thực tế của dữ liệu.
+    # Metric impact: missing_exported_at_rate tăng khi source export bỏ cột hoặc inject
+    # thêm dòng không có timestamp → freshness SLA không còn phản ánh đúng data lag.
+    missing_ts = [r for r in cleaned_rows if not (r.get("exported_at") or "").strip()]
+    coverage_rate = 1.0 - (len(missing_ts) / len(cleaned_rows)) if cleaned_rows else 0.0
+    ok11 = coverage_rate >= 0.80
+    results.append(
+        ExpectationResult(
+            "exported_at_coverage_80pct",
+            ok11,
+            "warn",
+            f"missing_exported_at={len(missing_ts)} coverage={round(coverage_rate * 100, 1)}%",
+        )
+    )
+
+    # E12: ít nhất 3 doc_id khác nhau trong cleaned output
+    # Severity: warn — nếu một nguồn tài liệu bị quarantine hoàn toàn (ví dụ toàn bộ chunk
+    # sla_p1_2026 hoặc it_helpdesk_faq bị reject do corrupt), RAG mất knowledge base đó
+    # nhưng pipeline vẫn exit 0. Expectation này phát hiện "blind spot" về coverage sớm.
+    # Metric impact: distinct_doc_ids giảm xuống < 3 khi inject Sprint 3 corrupt một loại doc_id
+    # về future_exported_at hoặc unknown_doc_id → toàn bộ source đó bị quarantine.
+    distinct_docs = len({r.get("doc_id", "") for r in cleaned_rows if r.get("doc_id")})
+    ok12 = distinct_docs >= 3
+    results.append(
+        ExpectationResult(
+            "doc_id_diversity_min_3",
+            ok12,
+            "warn",
+            f"distinct_doc_ids={distinct_docs}",
+        )
+    )
+
     halt = any(not r.passed and r.severity == "halt" for r in results)
     return results, halt
 
@@ -154,7 +225,7 @@ if __name__ == "__main__":
         {"chunk_id": "id_2", "doc_id": "hr_leave_policy",  "chunk_text": "Nhân viên có 12 ngày phép năm.", "effective_date": "2026-03-01"},
     ]
     results, halt = run_expectations(dummy)
-    count = 0
+    count = 1
     for r in results:
         status = "PASS" if r.passed else "FAIL"
         print(f"{count}. [{r.severity.upper()}] [{status.upper()}] {r.name}: - {r.detail}")
