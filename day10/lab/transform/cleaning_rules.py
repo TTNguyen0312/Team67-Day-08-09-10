@@ -27,6 +27,8 @@ ALLOWED_DOC_IDS = frozenset(
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _DMY_SLASH = re.compile(r"^(\d{2})/(\d{2})/(\d{4})$")
 _EMAIL_PATTERN = re.compile(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+")
+_PHONE_PATTERN = re.compile(r"(\b0[35789]\d{8}\b|\b\d{3,4}[-.\s]?\d{3,4}[-.\s]?\d{3,4}\b)")
+_HTML_PATTERN = re.compile(r"<[^>]+>")
 
 
 def _norm_text(s: str) -> str:
@@ -80,8 +82,9 @@ def clean_rows(
     5) Loại trùng nội dung chunk_text (giữ bản đầu).
     6) Fix stale refund: policy_refund_v4 chứa '14 ngày làm việc' → 7 ngày.
     7) Quarantine: exported_at nằm trong tương lai (lỗi hệ thống). [metric_impact: data_integrity]
-    8) Quarantine: chunk chứa thông tin PII (email). [metric_impact: security_compliance]
+    8) Quarantine: chunk chứa thông tin PII (email/phone). [metric_impact: security_compliance]
     9) Chuẩn hoá khoảng trắng thừa (whitespace normalization). [metric_impact: embedding_quality]
+    10) Làm sạch thẻ HTML/Markdown thừa. [metric_impact: noise_reduction]
     """
     quarantine: List[Dict[str, Any]] = []
     seen_text: set[str] = set()
@@ -131,9 +134,12 @@ def clean_rows(
             quarantine.append({**raw, "reason": "missing_chunk_text"})
             continue
 
-        # RULE 8: PII Email Detection
+        # RULE 8: PII Detection (Email & Phone)
         if _EMAIL_PATTERN.search(text):
             quarantine.append({**raw, "reason": "pii_detected_email"})
+            continue
+        if _PHONE_PATTERN.search(text):
+            quarantine.append({**raw, "reason": "pii_detected_phone"})
             continue
 
         key = _norm_text(text)
@@ -142,8 +148,11 @@ def clean_rows(
             continue
         seen_text.add(key)
 
-        # RULE 9: Whitespace Normalization (giữ case nhưng loại bỏ space thừa)
-        fixed_text = " ".join(text.strip().split())
+        # RULE 9 & 10: Whitespace & HTML Cleaning
+        # Loại bỏ thẻ HTML trước
+        fixed_text = _HTML_PATTERN.sub("", text)
+        # Chuẩn hoá khoảng trắng thừa (giữ case)
+        fixed_text = " ".join(fixed_text.strip().split())
 
         if apply_refund_window_fix and doc_id == "policy_refund_v4":
             if "14 ngày làm việc" in fixed_text:
