@@ -4,10 +4,10 @@
 **Thành viên:**
 | Tên | Vai trò (Day 10) | Email |
 |-----|------------------|-------|
-| Nguyễn Văn A | Ingestion / Raw Owner | a.nguyen@example.com |
-| Trần Thị B | Cleaning & Quality Owner | b.tran@example.com |
-| Lê Văn C | Embed & Idempotency Owner | c.le@example.com |
-| Phạm Văn D | Monitoring / Docs Owner | d.pham@example.com |
+| Nguyễn Việt Quang | Ingestion / Raw Owner | ___ |
+| Nguyễn Thị Ngọc, Trương Quang Lộc | Cleaning & Quality Owner | ___ |
+| Vũ Đức Minh | Embed & Idempotency Owner | ___ |
+| Nguyễn Trọng Tiến | Monitoring / Docs Owner | nguyenvietquang.1601@gmail.com |
 
 **Ngày nộp:** 2026-04-15  
 **Repo:** https://github.com/TTNguyen0312/Team67-Day-08-09-10  
