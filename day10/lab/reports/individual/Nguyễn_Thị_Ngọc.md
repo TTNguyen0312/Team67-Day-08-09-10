@@ -12,7 +12,15 @@
 Trong dự án này, tôi chịu trách nhiệm chính về tầng **Transform** và **Quality Assurance**. Cụ thể:
 - **Module `transform/cleaning_rules.py`**: Tôi đã thiết kế và triển khai 5 quy tắc làm sạch dữ liệu mới để loại bỏ nhiễu hệ thống, xử lý PII (email/số điện thoại), và chuẩn hóa văn bản tiếng Việt. Đặc biệt, tôi đã tối ưu hóa hàm `clean_rows` để nhận cấu hình động từ Data Contract thay vì hard-code, giúp đạt hạng **Distinction**.
 
+
+- **Báo cáo nhóm `reports/group_report.md`**: Tôi đã trực tiếp soạn thảo Mục 2 (Cleaning & expectation) và Mục 3 (Before / after ảnh hưởng retrieval), tổng hợp bảng `metric_impact` để chứng minh các quy tắc làm sạch không phải là trivial.
 - **Quality Evidence**: Tôi thực hiện kịch bản Inject Corruption ở Sprint 3 để lấy bằng chứng Before/After, chứng minh hiệu quả của các quy tắc làm sạch đối với chất lượng Retrieval.
+
+**Bằng chứng (commit / comment trong code):**
+
+- File `transform/cleaning_rules.py`: Các rule 7-11 kèm docstring chi tiết.
+
+- File `reports/group_report.md`: Nội dung Mục 2 và Mục 3, bảng so sánh định lượng.
 
 ---
 
