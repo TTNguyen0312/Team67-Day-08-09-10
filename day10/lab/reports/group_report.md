@@ -5,7 +5,7 @@
 | Tên | Vai trò (Day 10) | Email |
 |-----|------------------|-------|
 | Nguyễn Việt Quang | Ingestion / Raw Owner | ___ |
-| Nguyễn Thị Ngọc, Trương Quang Lộc | Cleaning & Quality Owner | ___ |
+| Nguyễn Thị Ngọc, Trương Quang Lộc | Cleaning & Quality Owner | ngocntit@gmail.com |
 | Vũ Đức Minh | Embed & Idempotency Owner | ___ |
 | Nguyễn Trọng Tiến | Monitoring / Docs Owner | nguyenvietquang.1601@gmail.com |
 
