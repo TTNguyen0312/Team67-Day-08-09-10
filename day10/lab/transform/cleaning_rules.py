@@ -26,9 +26,10 @@ ALLOWED_DOC_IDS = frozenset(
 
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _DMY_SLASH = re.compile(r"^(\d{2})/(\d{2})/(\d{4})$")
-_EMAIL_PATTERN = re.compile(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+")
-_PHONE_PATTERN = re.compile(r"(\b0[35789]\d{8}\b|\b\d{3,4}[-.\s]?\d{3,4}[-.\s]?\d{3,4}\b)")
 _HTML_PATTERN = re.compile(r"<[^>]+>")
+_AUDIT_TAG_PATTERN = re.compile(r"\[cleaned: [^\]]+\]")
+_INTERNAL_NOTE_PATTERN = re.compile(r"\(ghi chú: [^\)]+\)")
+_PUNC_SPACE_PATTERN = re.compile(r"\s+([.,!?;])")
 
 
 def _norm_text(s: str) -> str:
@@ -81,10 +82,11 @@ def clean_rows(
     4) Quarantine: chunk_text rỗng hoặc effective_date rỗng sau chuẩn hoá.
     5) Loại trùng nội dung chunk_text (giữ bản đầu).
     6) Fix stale refund: policy_refund_v4 chứa '14 ngày làm việc' → 7 ngày.
-    7) Quarantine: exported_at nằm trong tương lai (lỗi hệ thống). [metric_impact: data_integrity]
-    8) Quarantine: chunk chứa thông tin PII (email/phone). [metric_impact: security_compliance]
-    9) Chuẩn hoá khoảng trắng thừa (whitespace normalization). [metric_impact: embedding_quality]
-    10) Làm sạch thẻ HTML/Markdown thừa. [metric_impact: noise_reduction]
+    7) Quarantine: exported_at nằm trong tương lai. [metric_impact: data_integrity]
+    8) Loại bỏ Audit Tags hệ thống ([cleaned: ...]). [metric_impact: noise_reduction]
+    9) Loại bỏ ghi chú nội bộ ((ghi chú: ...)). [metric_impact: rag_quality]
+    10) Chuẩn hoá dấu gạch ngang (— thành -). [metric_impact: text_standardization]
+    11) Chuẩn hoá dấu câu và khoảng trắng. [metric_impact: embedding_quality]
     """
     quarantine: List[Dict[str, Any]] = []
     seen_text: set[str] = set()
@@ -134,33 +136,34 @@ def clean_rows(
             quarantine.append({**raw, "reason": "missing_chunk_text"})
             continue
 
-        # RULE 8: PII Detection (Email & Phone)
-        if _EMAIL_PATTERN.search(text):
-            quarantine.append({**raw, "reason": "pii_detected_email"})
-            continue
-        if _PHONE_PATTERN.search(text):
-            quarantine.append({**raw, "reason": "pii_detected_phone"})
-            continue
-
         key = _norm_text(text)
         if key in seen_text:
             quarantine.append({**raw, "reason": "duplicate_chunk_text"})
             continue
         seen_text.add(key)
 
-        # RULE 9 & 10: Whitespace & HTML Cleaning
+        # RULE 8, 9, 10, 11: Content Cleaning
         # Loại bỏ thẻ HTML trước
         fixed_text = _HTML_PATTERN.sub("", text)
-        # Chuẩn hoá khoảng trắng thừa (giữ case)
-        fixed_text = " ".join(fixed_text.strip().split())
-
+        
+        # Áp dụng fix refund trước
         if apply_refund_window_fix and doc_id == "policy_refund_v4":
             if "14 ngày làm việc" in fixed_text:
-                fixed_text = fixed_text.replace(
-                    "14 ngày làm việc",
-                    "7 ngày làm việc",
-                )
-                fixed_text += " [cleaned: stale_refund_window]"
+                fixed_text = fixed_text.replace("14 ngày làm việc", "7 ngày làm việc")
+
+        # Xử lý rác hệ thống và ghi chú
+        fixed_text = _AUDIT_TAG_PATTERN.sub("", fixed_text)
+        fixed_text = _INTERNAL_NOTE_PATTERN.sub("", fixed_text)
+        
+        # Chuẩn hoá ký tự và dấu câu
+        fixed_text = fixed_text.replace("—", "-")
+        # Sửa lỗi khoảng trắng trước dấu câu
+        fixed_text = _PUNC_SPACE_PATTERN.sub(r"\1", fixed_text)
+        
+        # Chuẩn hoá khoảng trắng cuối cùng và loại bỏ dấu chấm dư ở cuối nếu có
+        fixed_text = " ".join(fixed_text.strip().split())
+        if fixed_text.endswith(".."):
+            fixed_text = fixed_text.rstrip(".") + "."
 
         seq += 1
         cleaned.append(
