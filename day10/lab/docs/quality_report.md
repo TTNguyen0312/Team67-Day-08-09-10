@@ -1,19 +1,18 @@
-
 # Quality report — Lab Day 10 (nhóm)
 
-**run_id:** sprint3_clean 
+**run_id:** sprint3_clean → sprint3_dirty → sprint3_fixed
 **Ngày:** 2026-04-15
 
 ---
 
 ## 1. Tóm tắt số liệu
 
-| Chỉ số             | Trước (sprint3_clean) | Sau (inject-bad) | Ghi chú                                                 |
-| ------------------ | --------------------- | ---------------- | ------------------------------------------------------- |
-| raw_records        | 10                    | 10               | Dữ liệu đầu vào giữ nguyên                              |
-| cleaned_records    | 6                     | (tăng)           | inject-bad bỏ qua validate nên giữ lại nhiều record hơn |
-| quarantine_records | 4                     | (giảm)           | dữ liệu lỗi không bị đưa vào quarantine                 |
-| Expectation halt?  | No (tất cả OK)        | Skipped          | inject-bad bỏ qua toàn bộ validation                    |
+| Chỉ số             | Clean (sprint3_clean) | Dirty (sprint3_dirty)    | Fixed (sprint3_fixed) | Ghi chú                              |
+| ------------------ | --------------------- | ------------------------ | --------------------- | ------------------------------------ |
+| raw_records        | 10                    | 10                       | 10                    | Dữ liệu đầu vào không đổi            |
+| cleaned_records    | 6                     | 6                        | 6                     | Sau cleaning giữ lại 6 record hợp lệ |
+| quarantine_records | 4                     | 4                        | 4                     | 4 record bị loại do lỗi              |
+| Expectation halt?  | No (OK)               | **FAIL (refund policy)** | No (OK)               | Dirty run phát hiện violation        |
 
 ---
 
@@ -21,121 +20,172 @@
 
 > File eval:
 
-* `artifacts/eval/before_after_eval.csv`
-
+* `artifacts/eval/eval_after_clean.csv`
+* `artifacts/eval/eval_after_dirty.csv`
+* `artifacts/eval/eval_before_clean.csv`
 
 ---
 
 ### Câu hỏi then chốt: refund window (`q_refund_window`)
 
-**Trước (sprint3_clean):**
-
-* Retrieval chỉ chứa policy hợp lệ:
-
-  > "refund within 7 working days"
-* Không tồn tại chunk sai (14 ngày)
-* `hits_forbidden = 0`
-* Context sạch, không có conflict
-
-**Sau (inject-bad):**
-
-* Do sử dụng `--no-refund-fix` và `--skip-validate`, policy sai (14 ngày) không bị loại
-* Retrieval có thể chứa:
-
-  > "refund within 14 working days"
-* Hoặc lẫn cả 7 ngày và 14 ngày trong top-k
-* `hits_forbidden > 0`
-
- Kết luận:
-
-* Dữ liệu bẩn làm nhiễu retrieval
-* Agent có nguy cơ trả lời sai hoặc dựa trên context không hợp lệ
-
----
-
-### Merit (khuyến nghị): versioning HR — `q_leave_version`
-
-**Trước:**
+**Trước (clean):**
 
 * Retrieval chỉ chứa:
 
-  > "12 days of annual leave"
-* Policy cũ (10 ngày) đã bị loại bỏ
+  > "refund within 7 working days"
+* `hits_forbidden = 0`
+* Không tồn tại policy sai
+
+---
+
+**Trong trạng thái dirty:**
+
+* Expectation:
+
+  ```text
+  refund_no_stale_14d_window FAIL (violations=1)
+  ```
+* Điều này cho thấy tồn tại policy:
+
+  > "refund within 14 working days"
+* Nếu bỏ validate (`--skip-validate`), chunk sai sẽ được embed
+* Retrieval có nguy cơ:
+
+  * chứa 14 ngày
+  * hoặc lẫn 7 và 14 ngày trong context
+* `hits_forbidden > 0`
+
+---
+
+**Sau khi fix:**
+
+* Expectation quay lại:
+
+  ```text
+  violations = 0
+  ```
+* Policy sai đã bị loại bỏ
+* Retrieval quay về:
+
+  > "7 working days"
 * `hits_forbidden = 0`
 
-**Sau:**
-
-* Policy cũ (10 ngày) được giữ lại do skip validation
-* Retrieval có thể chứa:
-
-  > "10 days of annual leave"
-* `hits_forbidden` tăng
+---
 
  Kết luận:
 
-* Conflict version làm giảm độ tin cậy của hệ thống retrieval
+* Dirty data làm hệ thống retrieval bị nhiễu
+* Validation giúp phát hiện và chặn dữ liệu sai
+* Fix pipeline giúp khôi phục chất lượng retrieval
+
+---
+
+### Merit: versioning HR (`q_leave_version`)
+
+**Clean:**
+
+* Policy đúng:
+
+  > "12 days of annual leave"
+* Không có conflict
+
+**Dirty:**
+
+* Có khả năng tồn tại policy cũ (10 ngày)
+* Gây conflict version trong retrieval
+
+**Fixed:**
+
+* Policy cũ bị loại
+* Retrieval ổn định lại
+
+---
+
+ Kết luận:
+
+* Version control là yếu tố quan trọng trong data pipeline
+* Nếu không kiểm soát, AI sẽ trả lời dựa trên dữ liệu lỗi thời
 
 ---
 
 ## 3. Freshness & monitor
 
-Kết quả `freshness_check`:
+Kết quả cho cả 3 run:
 
 * Status: **FAIL**
 * latest_exported_at: 2026-04-10T08:00:00
-* age_hours: 122.115 giờ
+* age_hours: ~122 giờ
 * SLA: 24 giờ
+
+---
 
  Giải thích:
 
-* Dữ liệu đã vượt quá SLA (hơn 5 ngày)
-* Pipeline phát hiện đúng tình trạng stale data
+* Dữ liệu đã vượt SLA (>5 ngày)
+* Pipeline phát hiện đúng dữ liệu stale
+
+---
 
  Ý nghĩa:
 
-* Dù dữ liệu đã được clean và validate, vẫn không đảm bảo tính cập nhật
-* Monitoring (freshness check) là cần thiết để tránh AI sử dụng dữ liệu lỗi thời
+* Dù dữ liệu clean và validate đúng, vẫn có thể lỗi do outdated
+* Freshness check là lớp bảo vệ thứ 2 sau validation
 
 ---
 
 ## 4. Corruption inject (Sprint 3)
 
-Nhóm đã cố ý làm hỏng dữ liệu bằng các cách:
+Nhóm thực hiện inject dữ liệu lỗi bằng cách:
 
+* Thêm **stale refund policy (14 ngày)**
 * Thêm **duplicate record**
-* Thêm **stale refund policy (14 ngày thay vì 7 ngày)**
-* Thêm **stale HR policy (10 ngày thay vì 12 ngày)**
 * Thêm **doc_id không hợp lệ**
-* Thêm **lỗi format ngày (non-ISO / missing)**
+* Thêm **lỗi định dạng ngày**
 
-Trong kịch bản inject-bad:
+---
 
-* Pipeline chạy với:
+### Quan sát:
 
-  * `--no-refund-fix`
-  * `--skip-validate`
-* Dữ liệu bẩn không bị loại bỏ và được embed trực tiếp vào vector store
+* Trong run `sprint3_dirty`:
 
-Cách phát hiện:
+  * Expectation detect:
 
-* `cleaned_records` tăng, `quarantine_records` giảm
-* Expectation không còn enforce
-* Retrieval xuất hiện `hits_forbidden`
-* Context chứa nhiều version conflict
+    ```text
+    violations = 1
+    ```
+  * embed_prune_removed = 1 → hệ thống loại bỏ vector stale
+
+---
+
+### Khi bypass validation:
+
+* Nếu chạy với:
+
+  ```bash
+  --skip-validate --no-refund-fix
+  ```
+* Dữ liệu sai sẽ được embed vào vector DB
+* Gây:
+
+  * retrieval sai
+  * context conflict
+  * `hits_forbidden` tăng
+
+---
 
  Điều này chứng minh:
 
-* Cleaning và validation là bắt buộc
-* Nếu bỏ qua pipeline, hệ thống AI sẽ sử dụng dữ liệu sai
+* Validation không chỉ để “check cho vui”
+* Nó là lớp bảo vệ critical cho hệ thống AI
 
 ---
 
 ## 5. Hạn chế & việc chưa làm
 
-* Chưa có cơ chế resolve conflict version (chỉ loại bỏ, chưa hợp nhất)
-* Chưa có alert tự động khi freshness FAIL
-* Retrieval evaluation vẫn dựa trên keyword, chưa dùng semantic scoring
-* Chưa áp dụng versioning theo thời gian (time-based filtering)
-* Chưa có cơ chế rollback dữ liệu khi phát hiện inject lỗi
+* Chưa có cơ chế resolve conflict (chỉ loại bỏ, chưa hợp nhất)
+* Chưa có alert tự động khi expectation FAIL
+* Chưa có cơ chế auto rollback khi phát hiện data lỗi
+* Retrieval evaluation còn đơn giản (keyword-based)
+* Chưa áp dụng filter theo thời gian (effective_date)
 
 ---
