@@ -43,8 +43,11 @@ _________________
 
 | Rule / Expectation mới (tên ngắn) | Trước (số liệu) | Sau / khi inject (số liệu) | Chứng cứ (log / CSV / commit) |
 |-----------------------------------|------------------|-----------------------------|-------------------------------|
-| … | … | … | … |
-
+| 7) Quarantine: exported_at nằm trong tương lai / | … | … | … |    
+| 8) Loại bỏ Audit Tags hệ thống ([cleaned: ...]) | … | … | … |    
+| 9) Loại bỏ ghi chú nội bộ ((ghi chú: ...)) | … | … | … |    
+| 10) Chuẩn hoá dấu gạch ngang (— thành -) | … | … | … |    
+| 11) Chuẩn hoá dấu câu và khoảng trắng | … | … | … |    
 **Rule chính (baseline + mở rộng):**
 
 - …
