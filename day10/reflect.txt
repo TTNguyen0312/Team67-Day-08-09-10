@@ -1,0 +1,4 @@
+- Rule 8 & 9 : Nếu bạn nhìn vào dòng 3 của file CSV, bạn sẽ thấy đoạn (ghi chú: ...) và [cleaned: ...] . Quy tắc mới của tôi sẽ tự động xóa sạch các đoạn này, giúp chunk_text cuối cùng chỉ còn nội dung nghiệp vụ thuần túy, cực kỳ tốt cho RAG.
+- Rule 10 & 11 : Xử lý các lỗi trình bày như dấu gạch ngang dài — và khoảng trắng thừa trước dấu chấm, phẩy.
+
+Tôi đã cập nhật logic xử lý để khi bạn chạy lại pipeline, các đoạn dữ liệu thừa như (ghi chú: ...) và [cleaned: ...] sẽ bị xóa sạch hoàn toàn, đồng thời đảm bảo không để lại các lỗi trình bày như dấu chấm đôi .. ở cuối câu.
